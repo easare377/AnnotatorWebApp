@@ -1,1 +1,1 @@
-# Annotator-WebApp
+# AnnotatorWebApp

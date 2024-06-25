@@ -8,11 +8,23 @@ from django.conf import settings
 from rest_api.controller import Controller
 
 
+# def get_controllers_from_module(module):
+#     controllers = []
+#     for name, obj in inspect.getmembers(module):
+#         if inspect.isclass(obj) and issubclass(obj, Controller) and obj != Controller:
+#             controllers.append(obj)
+#     return controllers
+
 def get_controllers_from_module(module):
     controllers = []
     for name, obj in inspect.getmembers(module):
         if inspect.isclass(obj) and issubclass(obj, Controller) and obj != Controller:
-            controllers.append(obj)
+            if hasattr(obj, '_route'):
+                controllers.append((obj._route, obj))
+            else:
+                # Default route name based on the class name
+                route_name = obj.__name__.replace('Controller', '').lower()
+                controllers.append((route_name, obj))
     return controllers
 
 
@@ -26,8 +38,7 @@ def load_controllers():
             module = importlib.import_module(module_name)
             controllers = get_controllers_from_module(module)
 
-            for controller in controllers:
-                route_name = controller.__name__.replace('Controller', '').lower()
-                urlpatterns.append(path(route_name, controller.as_view()))
+            for route, controller in controllers:
+                urlpatterns.append(path(route, controller.as_view()))
 
     return urlpatterns

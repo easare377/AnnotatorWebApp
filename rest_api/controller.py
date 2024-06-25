@@ -20,6 +20,14 @@ def authenticate_request(request):
     return True
 
 
+def ok(data=None):
+    return HttpResponseObject(200, data=data)
+
+
+def bad_request(message=None):
+    return HttpResponseObject(400, message=message)
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class Controller(View, ABC):
 
@@ -38,6 +46,3 @@ class Controller(View, ABC):
     @abstractmethod
     def process_post_request(self, request_object):
         pass
-
-    def ok(self, data=None):
-        return HttpResponseObject(200, data)

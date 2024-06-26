@@ -4,10 +4,8 @@ from ..decorators.route import route
 
 
 @route('project')
-class CreateProjectController(Controller, ABC):
-
+class CreateProjectController(Controller):
     def process_post_request(self, request_object):
         project_name = request_object['projectName']
-
         return bad_request('Invalid Json')
         return ok(request_object)

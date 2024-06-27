@@ -11,9 +11,13 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+import json
+import os
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
 
 
 # Quick-start development settings - unsuitable for production
@@ -37,7 +41,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.gis",
     "rest_api"
+
 ]
 
 MIDDLEWARE = [
@@ -74,23 +80,30 @@ WSGI_APPLICATION = "AnnotatorWebApp.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.sqlite3",
-#         "NAME": BASE_DIR / "db.sqlite3",
-#     }
-# }
-
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'annotatorDb',
-        'USER': 'postgres',
-        'PASSWORD': 'admin1',
-        'HOST': 'localhost',
-        'PORT': '5432',
+    # "default": {
+    #     "ENGINE": "django.db.backends.sqlite3",
+    #     "NAME": BASE_DIR / "db.sqlite3",
+    # },
+        "default": {
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        "NAME": "sample",
+        'USER': 'postgres',  # Your PostgreSQL username
+        'PASSWORD': 'Gkishore399@',  # Your PostgreSQL password
+        'HOST': 'localhost',  # Or the hostname of your PostgreSQL server
+        'PORT': '5433',  # Default PostgreSQL port
     }
+    
+#     'new': {
+#     'ENGINE': 'django.contrib.gis.db.backends.postgis',
+#     'NAME': 'SERVIR_AppTemplate',
+#     'USER': 'postgres',  # Your PostgreSQL username
+#     'PASSWORD': 'superuser',  # Your PostgreSQL password
+#     'HOST': 'localhost',  # Or the hostname of your PostgreSQL server
+#     'PORT': '5432',  # Default PostgreSQL port
+# }
 }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators

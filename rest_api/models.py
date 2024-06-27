@@ -85,7 +85,7 @@ class ObjectClass(models.Model):
     class_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     setup_id = models.ForeignKey(AnnotationSetup, on_delete=models.CASCADE, null=False)
     class_name = models.CharField(max_length=50, null=False)
-    color = models.CharField(max_length=6, null=False)
+    color = models.CharField(max_length=7, null=False)
     description = models.CharField(max_length=255, blank=True)
 
 

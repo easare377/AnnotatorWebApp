@@ -94,14 +94,6 @@ DATABASES = {
         'PORT': '5433',  # Default PostgreSQL port
     }
     
-#     'new': {
-#     'ENGINE': 'django.contrib.gis.db.backends.postgis',
-#     'NAME': 'SERVIR_AppTemplate',
-#     'USER': 'postgres',  # Your PostgreSQL username
-#     'PASSWORD': 'superuser',  # Your PostgreSQL password
-#     'HOST': 'localhost',  # Or the hostname of your PostgreSQL server
-#     'PORT': '5432',  # Default PostgreSQL port
-# }
 }
 
 

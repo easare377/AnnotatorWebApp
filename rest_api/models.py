@@ -18,7 +18,7 @@ class Projects(models.Model):
     project_name = models.CharField(max_length=50, null=False)
     description = models.CharField(max_length=255, blank=True)
     date_created = models.DateTimeField(default=timezone.now, null=False)
-    last_modified = models.DateTimeField(auto_now=True, null=False)
+    last_modified = models.DateTimeField(auto_now=True, null=True)
 
 
 class ImageInfo(models.Model):
@@ -53,7 +53,7 @@ class AnnotationType(models.Model):
     - annotation_id: Unique identifier for the annotation type.
     - annotation_type: Type of annotation.
     """
-    annotation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    annotation_id = models.UUIDField(primary_key=True, editable=False)
     annotation_type = models.CharField(max_length=20, null=False)
 
 

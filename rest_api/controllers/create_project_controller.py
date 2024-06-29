@@ -36,7 +36,7 @@ class CreateProjectController(Controller):
         
         delete_project_details(self,request_object=request_object)
         
-        return ok(request_object)
+        return ok(request_object)#
        
         
         # return super().process_put_request(request_object)

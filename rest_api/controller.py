@@ -42,7 +42,55 @@ class Controller(View, ABC):
             return response.to_response()
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid Data'}, status=400)
+        
+    def put(self,request,*args, **kwargs):
+        try:
+        # Deserialize the JSON body of the request
+            request_object = json.loads(request.body)
+            if not authenticate_request(request_object):
+                return JsonResponse('', status=status.HTTP_403_FORBIDDEN)
+            response = self.process_put_request(request_object,)
+            # Return a successful response
+            return response.to_response()
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid Data'}, status=400)
+        
+        
+    def get(self,request,*args, **kwargs):
+        try:
+        # Deserialize the JSON body of the request
+            request_object = json.loads(request.body)
+            if not authenticate_request(request_object):
+                return JsonResponse('', status=status.HTTP_403_FORBIDDEN)
+            response = self.process_get_request(request_object,)
+            # Return a successful response
+            return response.to_response()
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid Data'}, status=400)
+        
+       
+    def delete(self,request,*args, **kwargs):
+        try:
+        # Deserialize the JSON body of the request
+            request_object = json.loads(request.body)
+            if not authenticate_request(request_object):
+                return JsonResponse('', status=status.HTTP_403_FORBIDDEN)
+            response = self.process_delete_request(request_object)
+            # Return a successful response
+            return response.to_response()
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid Data'}, status=400)
+        
 
     @abstractmethod
     def process_post_request(self, request_object):
+        pass
+    @abstractmethod
+    def process_put_request(self, request_object):
+        pass
+    @abstractmethod
+    def process_get_request(self,request_object):
+        pass
+    @abstractmethod
+    def process_delete_request(self,request_object):
         pass

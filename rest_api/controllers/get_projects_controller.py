@@ -8,7 +8,7 @@ class CreateProjectController(Controller):
         resp = [{'projectId': '1234',
                  'name': 'Project 1',
                  'description': 'Project Description',
-                 'dateCreated': '2020-02-02 13:30:23'}, "YYYY-MM-DD HH:mm:ss.SSS"
+                 'dateCreated': '2020-02-02 13:30:23'},
                 {'projectId': '5678',
                  'name': 'Waterbodies',
                  'description': 'Project Description',

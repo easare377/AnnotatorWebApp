@@ -35,7 +35,8 @@ class Controller(View, ABC):
         try:
             # Deserialize the JSON body of the request
             print(request.body)
-            request_object = 'hi' #json.loads(request.body)
+            request_json = request.body.decode('utf-8')
+            request_object = json.loads(request_json)
             print(request_object)
             if not authenticate_request(request_object):
                 return JsonResponse('', status=status.HTTP_403_FORBIDDEN)

@@ -57,7 +57,7 @@ class AnnotationType(models.Model):
     annotation_type = models.CharField(max_length=20, null=False)
 
 
-class AnnotationSetup(models.Model):
+class ProjectSetup(models.Model):
     """
     Represents a table used to set up annotations for images.
 
@@ -67,7 +67,7 @@ class AnnotationSetup(models.Model):
     - annotation_type: Foreign key to relate the setup to an annotation type.
     """
     setup_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    image_id = models.ForeignKey(ImageInfo, on_delete=models.CASCADE, null=False)
+    project_id = models.ForeignKey(Projects, on_delete=models.CASCADE, null=False)
     annotation_type = models.ForeignKey(AnnotationType, on_delete=models.CASCADE)
 
 
@@ -83,7 +83,7 @@ class ObjectClass(models.Model):
     - description: Description of the object class.
     """
     class_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    setup_id = models.ForeignKey(AnnotationSetup, on_delete=models.CASCADE, null=False)
+    setup_id = models.ForeignKey(ProjectSetup, on_delete=models.CASCADE, null=False)
     class_name = models.CharField(max_length=50, null=False)
     color = models.CharField(max_length=7, null=False)
     description = models.CharField(max_length=255, blank=True)

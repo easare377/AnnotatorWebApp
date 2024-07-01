@@ -21,11 +21,11 @@ def authenticate_request(request):
 
 
 def ok(data=None):
-    return HttpResponseObject(200, data=data)
+    return HttpResponseObject(200, body=data)
 
 
 def bad_request(message=None):
-    return HttpResponseObject(400, message=message)
+    return HttpResponseObject(400, errors=message)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -34,7 +34,9 @@ class Controller(View, ABC):
     def post(self, request, *args, **kwargs):
         try:
             # Deserialize the JSON body of the request
-            request_object = json.loads(request.body)
+            print(request.body)
+            request_object = 'hi' #json.loads(request.body)
+            print(request_object)
             if not authenticate_request(request_object):
                 return JsonResponse('', status=status.HTTP_403_FORBIDDEN)
             response = self.process_post_request(request_object)

@@ -27,8 +27,6 @@ def create_project(self, request_object):
         # return bad_request('Invalid Json')
         # return bad_request(request_object)
     if request_object:
-       
-       
         try:
             # data = json.loads(request_object)
             data=request_object

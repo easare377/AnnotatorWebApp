@@ -17,6 +17,7 @@ class CreateProjectController(Controller):
     def process_post_request(self, request_object):
         # print("kkk"+ self)
         create_project(self,request_object=request_object)
+        print("post request")
         # update_project_with_details(request_object,"6d9ae90d-4164-480b-80cf-02d35984b938")
         
         return ok(request_object)

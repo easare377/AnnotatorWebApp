@@ -52,12 +52,18 @@ def create_project(self, request_object):
                 date_added=timezone.now()
             )
             image_info.save()
+            annotation_types=AnnotationType.objects.all()
             annotation_type_map = {
-                "POLYGON": "092cfa2c-371d-516e-8eb7-776931146fd6",
-                "BBOX": "858bdea9-94b8-5e1d-8339-03d14b75ca41"
-            }
+                    annotation_type.annotation_type: annotation_type.annotation_id for annotation_type in annotation_types
+                }
+            print(annotation_type_map)
+            # annotation_type_map = {
+            #     "POLYGON": "092cfa2c-371d-516e-8eb7-776931146fd6",
+            #     "BBOX": "858bdea9-94b8-5e1d-8339-03d14b75ca41"
+            # }
             annotation_type_key = data.get('annotation_type', 'POLYGON')  # Use 'POLYGON' as default
             annotation_type_uuid = annotation_type_map.get(annotation_type_key, annotation_type_map['POLYGON'])
+            print(annotation_type_uuid)
 
             # Create or get the AnnotationType
             # annotation_type, created = AnnotationType.objects.get_or_create(

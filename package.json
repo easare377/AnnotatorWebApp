@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "boto": "^0.0.1"
+  }
+}

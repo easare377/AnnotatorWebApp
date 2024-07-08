@@ -18,7 +18,7 @@ class Projects(models.Model):
     project_name = models.CharField(max_length=50, null=False)
     description = models.CharField(max_length=255, blank=True)
     date_created = models.DateTimeField(default=timezone.now, null=False)
-    last_modified = models.DateTimeField(auto_now=True, null=False)
+    last_modified = models.DateTimeField(auto_now=True, null=True)
 
 
 class ImageInfo(models.Model):
@@ -37,7 +37,7 @@ class ImageInfo(models.Model):
     """
     image_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project_id = models.ForeignKey(Projects, on_delete=models.CASCADE, null=False)
-    original_filename = models.CharField(max_length=10000, null=False)
+    original_filename = models.CharField(max_length=255, null=False)
     image_url = models.CharField(max_length=1000, null=False)
     image_width = models.IntegerField(null=False)
     image_height = models.IntegerField(null=False)
@@ -53,8 +53,8 @@ class AnnotationType(models.Model):
     - annotation_id: Unique identifier for the annotation type.
     - annotation_type: Type of annotation.
     """
-    annotation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    annotation_type = models.CharField(max_length=20, null=False)
+    annotation_id = models.UUIDField(primary_key=True, editable=False)
+    annotation_type = models.CharField(max_length=50, null=False)
 
 
 class AnnotationSetup(models.Model):
@@ -85,7 +85,7 @@ class ObjectClass(models.Model):
     class_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     setup_id = models.ForeignKey(AnnotationSetup, on_delete=models.CASCADE, null=False)
     class_name = models.CharField(max_length=50, null=False)
-    color = models.CharField(max_length=6, null=False)
+    color = models.CharField(max_length=7, null=False)
     description = models.CharField(max_length=255, blank=True)
 
 
@@ -111,3 +111,10 @@ class Polygons(models.Model):
     predicted_iou = models.FloatField(null=False)
     date_created = models.DateTimeField(default=timezone.now, null=False)
     date_modified = models.DateTimeField(auto_now=True)
+
+
+class ImageUpload(models.Model):
+    # image_id = models.ForeignKey(ImageInfo, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='images/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    

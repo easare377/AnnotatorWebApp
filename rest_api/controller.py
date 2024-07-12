@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from .http_response.http_response_object import HttpResponseObject
-
+from .request_object import dict_to_object
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.views import View
@@ -34,17 +34,23 @@ class Controller(View, ABC):
     def post(self, request, *args, **kwargs):
         try:
             # Deserialize the JSON body of the request
-            print(request.body)
             request_json = request.body.decode('utf-8')
-            request_object = json.loads(request_json)
-            print(request_object)
+            request_dict = json.loads(request_json)
+            request_object = dict_to_object(request_dict)
             if not authenticate_request(request_object):
-                return JsonResponse('', status=status.HTTP_403_FORBIDDEN)
+                return JsonResponse({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+
             response = self.process_post_request(request_object)
             # Return a successful response
             return response.to_response()
+
         except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid Data'}, status=400)
+            return JsonResponse({'error': 'Invalid Data'}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            # Log the exception (optional)
+            print(f'Error: {e}')
+            return JsonResponse({'error': 'Internal Server Error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @abstractmethod
     def process_post_request(self, request_object):

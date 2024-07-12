@@ -1,3 +1,4 @@
+import os
 """
 Django settings for AnnotatorWebApp project.
 
@@ -17,6 +18,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
+
+# Directory where download files will be stored
+DOWNLOADS_DIR = os.path.join(BASE_DIR, 'downloads')
+
+# Add the downloads directory to the static files directories
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+    DOWNLOADS_DIR,
+]
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure--uz=x7f2zi(#9t=8d0oeobrzeiuomicwgp4o^q6&+jxo80bo4y"
@@ -84,10 +94,10 @@ WSGI_APPLICATION = "AnnotatorWebApp.wsgi.application"
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'annotatorDb',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'AnnotatorDb',
         'USER': 'postgres',
-        'PASSWORD': 'admin1',
+        'PASSWORD': 'mandible',
         'HOST': 'localhost',
         'PORT': '5432',
     }

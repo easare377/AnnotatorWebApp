@@ -68,7 +68,7 @@ class ProjectSetup(models.Model):
     """
     setup_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project_id = models.ForeignKey(Projects, on_delete=models.CASCADE, null=False)
-    annotation_type = models.ForeignKey(AnnotationType, on_delete=models.CASCADE)
+    annotation_id = models.ForeignKey(AnnotationType, on_delete=models.CASCADE)
 
 
 class ObjectClass(models.Model):

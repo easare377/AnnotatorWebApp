@@ -1,5 +1,6 @@
 from abc import ABC
 from ..controller import *
+from rest_api import dbhelper as dbh
 from ..decorators.route import route
 from ..models import Projects
 from ..dbhelper import *
@@ -15,6 +16,8 @@ class CreateProjectController(Controller):
         #
         # project_name = request_object['projectName']
         project_info = request_object
-        create_project(project_info)
-        projects = get_projects()
-        return ok(projects)
+        created_project = dbh.create_project(project_info)
+        project = created_project.project
+        # projects = dbh.get_projects()
+        # resp = {'project_id': project_id, 'projects': projects}
+        return ok(project)

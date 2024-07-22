@@ -1,25 +1,5 @@
 import json
-import re
-
-
-def camel_to_snake(name):
-    """
-    Convert camelCase string to snake_case.
-    """
-    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
-
-
-def underscore_camel_to_snake(name):
-    """
-    Convert underscore camelCase string to snake_case.
-    """
-    # Remove leading underscore and convert the remaining string from camelCase to snake_case
-    name_without_leading_underscore = name.lstrip('_')
-    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name_without_leading_underscore)
-    snake_case = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
-
-    return snake_case
+import rest_api.utils.utils as utils
 
 
 class RequestObject:
@@ -29,7 +9,10 @@ class RequestObject:
 
     def __init__(self, **entries):
         for key, value in entries.items():
-            snake_key = underscore_camel_to_snake(key)
+            if key[0] == '_':
+                snake_key = utils.underscore_camel_to_snake(key)
+            else:
+                snake_key = utils.camel_to_snake(key)
             if isinstance(value, dict):
                 # Recursively convert sub-dictionaries to RequestObject
                 value = dict_to_object(value)

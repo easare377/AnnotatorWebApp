@@ -4,6 +4,7 @@ import json
 from django.http import JsonResponse
 import time
 from django.db import transaction, IntegrityError
+from django.utils import timezone
 
 date_format = '%Y-%m-%d %H:%M:%S'
 
@@ -89,7 +90,6 @@ def create_project(project_info):
     return project_model
 
 
-
 def get_images(project_id):
     # Query the ImageInfo model for images with the given project_id
     images = ImageInfo.objects.filter(project_id=project_id)
@@ -109,6 +109,42 @@ def get_images(project_id):
         images_list.append(image_dict)
 
     return images_list
+
+
+def save_image_info(project_id, image_url, image_details):
+    """
+    Save image information to the database.
+
+    Parameters:
+    - project_id: The project to which this image belongs.
+    - original_filename: The original filename of the image.
+    - image_url: The URL or path to access the image.
+    - image_width: The width of the image in pixels.
+    - image_height: The height of the image in pixels.
+
+    Returns:
+    - image_info: The created ImageInfo instance.
+    """
+    original_filename = image_details.file_name
+    image_width = image_details.width
+    image_height = image_details.height
+    #
+    project_instance = Projects.objects.get(project_id=project_id)
+    # Create a new ImageInfo instance
+    image_info = ImageInfo(
+        image_id=uuid.uuid4(),
+        project_id=project_instance,
+        original_filename=original_filename,
+        image_url=image_url,
+        image_width=image_width,
+        image_height=image_height,
+        date_added=timezone.now(),
+        date_modified=timezone.now()
+    )
+    # Save the instance to the database
+    image_info.save()
+
+    return image_info
 
 
 def update_project_with_details(self, request_object):
@@ -153,7 +189,7 @@ def update_project_with_details(self, request_object):
             annotation_id=annotation_type_uuid,
             defaults={'annotation_type': annotation_type_key}
         )
-        print(annotation_type)
+        # print(annotation_type)
 
         # Update AnnotationSetup (assuming one setup per image for simplicity)
         try:

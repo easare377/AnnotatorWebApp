@@ -3,8 +3,10 @@ import uuid
 import json
 from django.http import JsonResponse
 import time
+from rest_api.utils import utils as utils
 from django.db import transaction, IntegrityError
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 date_format = '%Y-%m-%d %H:%M:%S'
 
@@ -248,10 +250,76 @@ def delete_project_details(self, request_object):
         return JsonResponse({'error': 'Project not found'}, status=404)
 
 
+def __save_polygon_info__(image_id, polygon_info):
+    """
+    Save a new polygon instance to the database.
+
+    Parameters:
+    - image_id: The ID of the related image.
+    - polygon_info: An object containing the polygon's points, stability score, and predicted IOU.
+
+    The polygon_info object should have the following attributes:
+    - points: Array of points defining the polygon shape.
+    - stability_score: Stability score associated with the polygon.
+    - predicted_iou: Predicted intersection over union (IOU) value for the polygon.
+    """
+    # Validate the points format
+    if not utils.validate_points(polygon_info.points):
+        raise ValidationError("points must be in the format [{'x': int, 'y': int}, {'x': int, 'y': int}, {'x': int, "
+                              "'y': int}].")
+
+    # Save the polygon instance
+    polygon = Polygons(
+        image_id=image_id,
+        points=polygon_info.points,
+        stability_score=polygon_info.stability_score,
+        predicted_iou=polygon_info.predicted_iou,
+        date_created=timezone.now()
+    )
+    polygon.save()
+    polygon_dict = {
+        'polygonId': str(polygon.polygon_id),
+        'classId': str(polygon.class_id_id),
+        'points': polygon.points,
+        'stabilityScore': polygon.stability_score,
+        'predictedIoU': polygon.predicted_iou,
+        'dateCreated': polygon.date_created.strftime(date_format),
+        'dateModified': polygon.date_modified.strftime(date_format)
+    }
+    return polygon_dict
+
+
+def save_polygons_infos(image_id, polygon_infos):
+    """
+    Save multiple polygon instances to the database in an atomic operation.
+
+    Parameters:
+    - image_id: The ID of the related image.
+    - polygon_infos: A list of objects, each containing the polygon's points, stability score, and predicted IOU.
+
+    Each polygon_info object should have the following attributes:
+    - points: Array of points defining the polygon shape.
+    - stability_score: Stability score associated with the polygon.
+    - predicted_iou: Predicted intersection over union (IOU) value for the polygon.
+    """
+    try:
+        db_polygon_infos = []
+        with transaction.atomic():
+            for polygon_info in polygon_infos:
+                polygon_info_dict = __save_polygon_info__(image_id, polygon_info)
+                db_polygon_infos.append(polygon_info_dict)
+        return db_polygon_infos
+    except ValidationError as e:
+        raise e
+    except Exception as e:
+        # Log the exception (optional)
+        # print(f'Error: {e}')
+        raise ValueError("Failed to save polygons due to a database error.")
+
+
 def get_polygons(image_id):
     # Query the Polygons model for polygons with the given image_id
     polygons = Polygons.objects.filter(image_id=image_id)
-
     # Convert the query result to a list of dictionaries
     polygons_list = []
     for polygon in polygons:
@@ -265,7 +333,6 @@ def get_polygons(image_id):
             'dateModified': polygon.date_modified.strftime(date_format)
         }
         polygons_list.append(polygon_dict)
-
     return polygons_list
 #
 # # image_info = ImageInfo()

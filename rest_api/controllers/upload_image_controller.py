@@ -46,7 +46,7 @@ def convert_to_png(pil_image: Image):
 #     return ImageDetails(file_name, width, height)
 
 
-@route('upload-image')
+@route('projects/data/upload-image')
 class UploadImageController(Controller):
     @multipart_request
     def process_post_request(self, request_object):

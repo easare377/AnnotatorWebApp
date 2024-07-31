@@ -1,25 +1,15 @@
 from ..controller import *
 from ..decorators.route import route
 from ..dbhelper import *
+from rest_api import dbhelper as dbh
 
 
-@route('projects/data/annotate')
+@route('projects/data/polygons')
 class GetPolygonsController(Controller):
     def process_post_request(self, request_object):
-        polygon_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-        image_id = models.ForeignKey(ImageInfo, on_delete=models.CASCADE, null=False)
-        class_id = models.ForeignKey(ObjectClass, on_delete=models.CASCADE)
-        points = models.JSONField(null=False)
-        stability_score = models.FloatField(null=False)
-        predicted_iou = models.FloatField(null=False)
-        date_created = models.DateTimeField(default=timezone.now, null=False)
-        date_modified = models.DateTimeField(auto_now=True)
-
-        return ok([{'polygonId': '1234',
-                    'classId': '3456',
-                    'points': [{'x': 6, 'y': 6}, {'x': 8, 'y': 4}, {'x': 3, 'y': 7}],
-                    'stabilityScore': 1.0,
-                    'predictedIoU': 1.0,
-                    'dateCreated': timezone.now(),
-                    'dateModified': timezone.now()}])
-        pass
+        image_id = request_object.image_id
+        db_polygon_infos = dbh.get_polygons(image_id)
+        # if len(db_polygon_infos) == 0:
+        #     pod_polygon_infos = generate_polygons(image_url)
+        #     db_polygon_infos = dbh.save_polygon_infos(image_id, pod_polygon_infos)
+        return ok(db_polygon_infos)

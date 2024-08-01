@@ -79,6 +79,7 @@ def create_project(project_info):
                 class_name = object_class.class_name
                 object_class_color = object_class.color
                 object_class_description = object_class.description
+                # Save new object class row
                 object_class_model = ObjectClass(
                     setup_id=project_setup_model,  # Using the project setup instance directly
                     class_name=class_name,
@@ -111,6 +112,55 @@ def get_images(project_id):
         images_list.append(image_dict)
 
     return images_list
+
+
+def get_image_info(image_id):
+    """
+    Retrieves image information based on the provided image_id.
+
+    Parameters:
+    - image_id (UUID): The unique identifier of the image.
+
+    Returns:
+    - dict: A dictionary containing the image information, which includes:
+        - imageId (str): The unique identifier of the image.
+        - originalFilename (str): The original filename of the image.
+        - imageUrl (str): The URL or path to access the image.
+        - imageWidth (int): The width of the image in pixels.
+        - imageHeight (int): The height of the image in pixels.
+        - dateAdded (str): The date and time when the image was added.
+        - dateModified (str): The date and time when the image was last modified.
+
+    Raises:
+    - ImageInfo.DoesNotExist: If the image with the given image_id does not exist.
+
+    Example:
+    >>> get_image_info('19699044-5ada-4a1b-8924-a523dac47618')
+    {
+        'imageId': '19699044-5ada-4a1b-8924-a523dac47618',
+        'originalFilename': 'image.jpg',
+        'imageUrl': 'https://s3.bucket/19699044-5ada-4a1b-8924-a523dac47618.png',
+        'imageWidth': 3000,
+        'imageHeight': 2000,
+        'dateAdded': '2020-02-02 13:30:23',
+        'dateModified': '2020-02-02 13:30:23'
+    }
+    """
+    try:
+        image = ImageInfo.objects.get(image_id=image_id)
+        image_dict = {
+            'imageId': str(image.image_id),
+            'originalFilename': image.original_filename,
+            'imageUrl': image.image_url,
+            'imageWidth': image.image_width,
+            'imageHeight': image.image_height,
+            'dateAdded': image.date_added.strftime(date_format),
+            'dateModified': image.date_modified.strftime(date_format)
+        }
+        return image_dict
+
+    except ImageInfo.DoesNotExist:
+        return None
 
 
 def save_image_info(project_id, image_url, image_details):
@@ -268,15 +318,23 @@ def __save_polygon_info__(image_id, polygon_info):
         raise ValidationError("points must be in the format [{'x': int, 'y': int}, {'x': int, 'y': int}, {'x': int, "
                               "'y': int}].")
 
+    # Fetch the ImageInfo instance
+    try:
+        image_instance = ImageInfo.objects.get(image_id=image_id)
+    except ImageInfo.DoesNotExist:
+        raise ValidationError(f"Image with ID {image_id} does not exist.")
+
     # Save the polygon instance
     polygon = Polygons(
-        image_id=image_id,
+        image_id=image_instance,  # Use the ImageInfo instance
         points=polygon_info.points,
         stability_score=polygon_info.stability_score,
         predicted_iou=polygon_info.predicted_iou,
-        date_created=timezone.now()
+        date_created=timezone.now(),
+        date_modified=timezone.now()
     )
     polygon.save()
+
     polygon_dict = {
         'polygonId': str(polygon.polygon_id),
         'classId': str(polygon.class_id_id),
@@ -289,7 +347,7 @@ def __save_polygon_info__(image_id, polygon_info):
     return polygon_dict
 
 
-def save_polygons_infos(image_id, polygon_infos):
+def save_polygon_infos(image_id, polygon_infos):
     """
     Save multiple polygon instances to the database in an atomic operation.
 
@@ -313,8 +371,69 @@ def save_polygons_infos(image_id, polygon_infos):
         raise e
     except Exception as e:
         # Log the exception (optional)
-        # print(f'Error: {e}')
+        print(f'Error: {e}')
         raise ValueError("Failed to save polygons due to a database error.")
+
+
+def get_project_setup(project_id):
+    """
+    Retrieves the project setup details including annotation type, object classes, and image information.
+
+    Parameters:
+    - project_id (UUID): The unique identifier of the project.
+
+    Returns:
+    - dict: A dictionary containing the project setup details, which includes:
+        - annotationType (dict): Information about the annotation type.
+            - annotationId (str): The unique identifier of the annotation type.
+            - annotationType (str): The type of annotation.
+        - objectClasses (list): A list of dictionaries containing object class details.
+            - setupId (str): The unique identifier of the project setup.
+            - className (str): The name of the object class.
+            - color (str): The color associated with the object class.
+            - description (str): A description of the object class.
+        - imageInfos (list): A list of dictionaries containing image information.
+            - imageId (str): The unique identifier of the image.
+            - originalFilename (str): The original filename of the image.
+            - imageUrl (str): The URL or path to access the image.
+            - imageWidth (int): The width of the image in pixels.
+            - imageHeight (int): The height of the image in pixels.
+            - dateAdded (str): The date and time when the image was added.
+            - dateModified (str): The date and time when the image was last modified.
+
+    Raises:
+    - Projects.DoesNotExist: If the project with the given project_id does not exist.
+    """
+    project = Projects.objects.get(project_id=project_id)
+
+    # Get ProjectSetup related to the project
+    # project_setup = ProjectSetup.objects.filter(project_id=project).select_related('annotation_id')
+    project_setup = ProjectSetup.objects.get(project_id=project)
+    # project_setup = project_setup.first()
+
+    # Get AnnotationType
+    # 'annotationId': str(project_setup.annotation_id),
+    annotation_type = project_setup.annotation_id
+    # annotation_type = {
+    #     'annotationType': project_setup.annotation_id
+    # }
+
+    # Get ObjectClasses related to the project setup
+    object_classes = ObjectClass.objects.filter(setup_id=project_setup)
+    object_classes_list = [
+        {
+            'classId': str(obj_class.class_id),
+            'className': obj_class.class_name,
+            'color': obj_class.color,
+            'description': obj_class.description
+        }
+        for obj_class in object_classes
+    ]
+    return {
+        'setupId': str(project_setup.setup_id),
+        'annotationType': annotation_type.annotation_type,
+        'objectClasses': object_classes_list
+    }
 
 
 def get_polygons(image_id):

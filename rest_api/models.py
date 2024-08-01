@@ -96,7 +96,7 @@ class Polygons(models.Model):
     Fields:
     - polygon_id: Unique identifier for the polygon.
     - image_id: Foreign key to relate the polygon to an image.
-    - class_id: Foreign key to relate the polygon to an object class.
+    - class_id: Foreign key to relate the polygon to an object class (nullable).
     - points: Array of points defining the polygon shape.
     - stability_score: Stability score associated with the polygon.
     - predicted_iou: Predicted intersection over union (IOU) value for the polygon.
@@ -105,7 +105,7 @@ class Polygons(models.Model):
     """
     polygon_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     image_id = models.ForeignKey(ImageInfo, on_delete=models.CASCADE, null=False)
-    class_id = models.ForeignKey(ObjectClass, on_delete=models.CASCADE)
+    class_id = models.ForeignKey(ObjectClass, on_delete=models.CASCADE, null=True, blank=True)
     points = models.JSONField(null=False)
     stability_score = models.FloatField(null=False)
     predicted_iou = models.FloatField(null=False)

@@ -17,7 +17,7 @@ class CreateProjectController(Controller):
         # project_name = request_object['projectName']
         project_info = request_object
         created_project = dbh.create_project(project_info)
-        project = created_project.project
-        # projects = dbh.get_projects()
+        project = created_project
+        projects = dbh.get_projects()
         # resp = {'project_id': project_id, 'projects': projects}
-        return ok(project)
+        return ok(projects)

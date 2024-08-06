@@ -2,7 +2,7 @@ name: AnnotatorWebApp
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "emmanuel-branch" ]
   # pull_request:
   #   branches: [ "main" ]
 

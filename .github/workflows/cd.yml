@@ -14,8 +14,8 @@ jobs:
 
     steps:
     - name: Pull Docker image
-      run: sudo docker pull gkishore399/annotatordjango:latest
+      run: sudo docker pull gkishore399/djangocicd:latest
     - name: Delete Old docker container
       run: sudo docker rm -f annotator-pipeline-container || true
     - name: Run Docker Container
-      run: sudo docker run -d -p 8000:8000 --name annotator-pipeline-container gkishore399/annotatordjango
+      run: sudo docker run -d -p 8000:8000 --name annotator-pipeline-container gkishore399/djangocicd

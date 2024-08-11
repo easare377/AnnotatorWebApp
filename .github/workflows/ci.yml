@@ -1,4 +1,4 @@
-name: AnnotatorWebApp
+name: Ci-AnnotatorWebApp
 
 on:
   push:

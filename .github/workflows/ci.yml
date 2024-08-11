@@ -2,7 +2,7 @@ name: Ci-AnnotatorWebApp
 
 on:
   push:
-    branches: [ "emmanuel-branch","main"]
+    branches: [ "emmanuel-branch"]
   # pull_request:
   #   branches: [ "main" ]
 

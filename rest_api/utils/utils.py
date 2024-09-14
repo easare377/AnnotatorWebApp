@@ -274,3 +274,20 @@ def hex_to_rgb(hex_color):
     """
     hex_color = hex_color.lstrip('#')
     return [int(hex_color[i:i + 2], 16) for i in (0, 2, 4)]
+
+
+def scale_image_size_to_width(image_size, new_width):
+    """
+    Scales an image to a new width while maintaining the aspect ratio.
+
+    Parameters:
+    - image_path (str): The path to the image file.
+    - new_width (int): The new width to which the image should be scaled.
+
+    Returns:
+    - Int, Int: The new scaled size.
+    """
+    original_width, original_height = image_size
+    aspect_ratio = original_height / original_width
+    new_height = int(new_width * aspect_ratio)
+    return new_width, new_height

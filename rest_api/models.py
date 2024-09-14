@@ -16,7 +16,7 @@ class Projects(models.Model):
     """
     project_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project_name = models.CharField(max_length=50, null=False)
-    description = models.CharField(max_length=255, blank=True)
+    description = models.CharField(max_length=255, blank=True, null=True)
     date_created = models.DateTimeField(default=timezone.now, null=False)
 
 

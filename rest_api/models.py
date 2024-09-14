@@ -18,7 +18,6 @@ class Projects(models.Model):
     project_name = models.CharField(max_length=50, null=False)
     description = models.CharField(max_length=255, blank=True)
     date_created = models.DateTimeField(default=timezone.now, null=False)
-    last_modified = models.DateTimeField(auto_now=True, null=True)
 
 
 class ImageInfo(models.Model):
@@ -38,11 +37,11 @@ class ImageInfo(models.Model):
     image_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project_id = models.ForeignKey(Projects, on_delete=models.CASCADE, null=False)
     original_filename = models.CharField(max_length=10000, null=False)
-    image_url = models.CharField(max_length=1000, null=False)
+    png_image_url = models.CharField(max_length=1000, null=False)
+    jpg_image_url = models.CharField(max_length=1000, null=False)
     image_width = models.IntegerField(null=False)
     image_height = models.IntegerField(null=False)
-    date_added = models.DateTimeField(default=timezone.now, null=False)
-    date_modified = models.DateTimeField(auto_now=True)
+    date_created = models.DateTimeField(default=timezone.now, null=False)
 
 
 class AnnotationType(models.Model):
@@ -81,10 +80,12 @@ class ObjectClass(models.Model):
     - class_name: Name of the object class.
     - color: Color associated with the object class.
     - description: Description of the object class.
+    - class_index: An integer representing the index of the object class.
     """
     class_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     setup_id = models.ForeignKey(ProjectSetup, on_delete=models.CASCADE, null=False)
     class_name = models.CharField(max_length=50, null=False)
+    class_index = models.IntegerField(null=False)
     color = models.CharField(max_length=7, null=False)
     description = models.CharField(max_length=255, blank=True)
 
@@ -111,3 +112,36 @@ class Polygons(models.Model):
     predicted_iou = models.FloatField(null=False)
     date_created = models.DateTimeField(default=timezone.now, null=False)
     date_modified = models.DateTimeField(auto_now=True)
+
+
+class ExportDetails(models.Model):
+    """
+    Represents a table used to store project export details.
+
+    Fields:
+    - export_id: Unique identifier for the export.
+    - project_id: Foreign key to relate the export to a project.
+    - date_created: Date and time when the export was created.
+    """
+    export_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project_id = models.ForeignKey(Projects, on_delete=models.CASCADE, null=False)
+    zip_file_url = models.CharField(max_length=1000, null=False)
+    date_created = models.DateTimeField(default=timezone.now, null=False)
+
+
+class ExportedData(models.Model):
+    """
+        Model representing the exported data files for a given export operation.
+
+        Attributes:
+            id (UUIDField): A unique identifier for each record.
+            export_id (ForeignKey): A foreign key reference to the `ExportDetails` model.
+            mask_file_url (CharField): The URL path to the mask file associated with this export.
+            rgb_file_url (CharField): The URL path to the RGB file associated with this export.
+            date_created (DateTimeField): The timestamp when this record was created.
+        """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    export_id = models.ForeignKey(ExportDetails, on_delete=models.CASCADE, null=False)
+    mask_file_url = models.CharField(max_length=1000, null=False)
+    rgb_file_url = models.CharField(max_length=1000, null=False)
+    date_created = models.DateTimeField(default=timezone.now, null=False)

@@ -7,6 +7,9 @@ from rest_api.utils import utils as utils
 from django.db import transaction, IntegrityError
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.db.utils import IntegrityError
+from .models import Projects, ImageInfo, ProjectSetup, ObjectClass, AnnotationType
 
 date_format = '%Y-%m-%d %H:%M:%S'
 
@@ -36,9 +39,15 @@ def get_projects():
     return project_list
 
 
-from django.db import transaction
-from django.db.utils import IntegrityError
-from .models import Projects, ImageInfo, ProjectSetup, ObjectClass, AnnotationType
+def get_project_details(project_id):
+    project = Projects.objects.get(project_id=project_id)
+    project_dict = {
+        'projectId': str(project.project_id),
+        'name': project.project_name,
+        'description': project.description,
+        'dateCreated': project.date_created.strftime(date_format)
+    }
+    return project_dict
 
 
 def create_project(project_info):
@@ -61,33 +70,27 @@ def create_project(project_info):
                 description=project_description
             )
             project_model.save()
-
             # Create a new project setup row
-            annotation_type_map = {
-                "POLYGON": "092cfa2c-371d-516e-8eb7-776931146fd6",
-                "BBOX": "858bdea9-94b8-5e1d-8339-03d14b75ca41"
-            }
-            annotation_type_instance = AnnotationType.objects.get(annotation_id=annotation_type_map[annotation_type])
+            annotation_type_instance = AnnotationType.objects.get(annotation_type=annotation_type)
             project_setup_model = ProjectSetup(
                 project_id=project_model,  # Using the project instance directly
                 annotation_id=annotation_type_instance
             )
             project_setup_model.save()
-
             # Create new object class rows
-            for object_class in object_classes:
+            for index, object_class in enumerate(object_classes, start=1):
                 class_name = object_class.class_name
                 object_class_color = object_class.color
                 object_class_description = object_class.description
-                # Save new object class row
+                # Save new object class row with class_index
                 object_class_model = ObjectClass(
                     setup_id=project_setup_model,  # Using the project setup instance directly
                     class_name=class_name,
+                    class_index=index,  # Set the class_index to the current loop index
                     color=object_class_color,
-                    description=object_class_description,
+                    description=object_class_description
                 )
                 object_class_model.save()
-
     except IntegrityError:
         raise ValueError("Failed to create project due to database error")
     return project_model
@@ -96,21 +99,18 @@ def create_project(project_info):
 def get_images(project_id):
     # Query the ImageInfo model for images with the given project_id
     images = ImageInfo.objects.filter(project_id=project_id)
-
     # Convert the query result to a list of dictionaries
     images_list = []
     for image in images:
         image_dict = {
             'imageId': str(image.image_id),
             'originalFilename': image.original_filename,
-            'imageUrl': image.image_url,
+            'imageUrl': image.png_image_url,
             'imageWidth': image.image_width,
             'imageHeight': image.image_height,
-            'dateAdded': image.date_added.strftime(date_format),
-            'dateModified': image.date_modified.strftime(date_format)
+            'dateAdded': image.date_created.strftime(date_format)
         }
         images_list.append(image_dict)
-
     return images_list
 
 
@@ -151,11 +151,10 @@ def get_image_info(image_id):
         image_dict = {
             'imageId': str(image.image_id),
             'originalFilename': image.original_filename,
-            'imageUrl': image.image_url,
+            'imageUrl': image.jpg_image_url,
             'imageWidth': image.image_width,
             'imageHeight': image.image_height,
-            'dateAdded': image.date_added.strftime(date_format),
-            'dateModified': image.date_modified.strftime(date_format)
+            'dateAdded': image.date_created.strftime(date_format)
         }
         return image_dict
 
@@ -163,7 +162,7 @@ def get_image_info(image_id):
         return None
 
 
-def save_image_info(project_id, image_url, image_details):
+def save_image_info(project_id, png_image_url, jpg_image_url, image_details):
     """
     Save image information to the database.
 
@@ -187,117 +186,15 @@ def save_image_info(project_id, image_url, image_details):
         image_id=uuid.uuid4(),
         project_id=project_instance,
         original_filename=original_filename,
-        image_url=image_url,
+        png_image_url=png_image_url,
+        jpg_image_url=jpg_image_url,
         image_width=image_width,
         image_height=image_height,
-        date_added=timezone.now(),
-        date_modified=timezone.now()
+        date_created=timezone.now()
     )
     # Save the instance to the database
     image_info.save()
-
     return image_info
-
-
-def update_project_with_details(self, request_object):
-    # if request.method == 'POST':
-    try:
-        data = request_object
-        project_id = data['project_id']
-
-        # Fetch the project by project_id
-        try:
-            project = Projects.objects.get(project_id=project_id)
-
-        except Projects.DoesNotExist:
-            return JsonResponse({'error': 'Project not found'}, status=404)
-
-        # Update project fields
-        project.project_name = data.get('project_name', project.project_name)
-        project.description = data.get('project_description', project.description)
-        project.last_modified = timezone.now()
-        project.save()
-
-        # Update ImageInfo (assuming one image per project for simplicity)
-        try:
-            image_info = ImageInfo.objects.get(project_id=project)
-            image_info.original_filename = data.get('original_filename', image_info.original_filename)
-            image_info.date_modified = timezone.now()
-            image_info.save()
-        except ImageInfo.DoesNotExist:
-            return JsonResponse({'error': 'ImageInfo not found'}, status=404)
-
-        # Handle annotation type
-        annotation_type_map = {
-            "POLYGON": "092cfa2c-371d-516e-8eb7-776931146fd6",
-            "BBOX": "858bdea9-94b8-5e1d-8339-03d14b75ca41"
-        }
-        annotation_type_key = data.get('annotation_type', 'POLYGON')  # Use 'POLYGON' as default
-        annotation_type_uuid = annotation_type_map.get(annotation_type_key, annotation_type_map['POLYGON'])
-        print(annotation_type_uuid)
-
-        # Get or create the AnnotationType
-        annotation_type, created = AnnotationType.objects.get_or_create(
-            annotation_id=annotation_type_uuid,
-            defaults={'annotation_type': annotation_type_key}
-        )
-        # print(annotation_type)
-
-        # Update AnnotationSetup (assuming one setup per image for simplicity)
-        try:
-            annotation_setup = AnnotationSetup.objects.get(image_id=image_info)
-            annotation_setup.annotation_type = annotation_type
-            annotation_setup.save()
-        except AnnotationSetup.DoesNotExist:
-            return JsonResponse({'error': 'AnnotationSetup not found'}, status=404)
-
-        # Update ObjectClass instances
-        class_names = data.get('class_name', [])
-        colors = data.get('color', [])
-        description = data.get('description', '')
-
-        # Clear existing ObjectClass instances
-        ObjectClass.objects.filter(setup_id_id=annotation_setup).delete()
-
-        # Create new ObjectClass instances
-        for class_name, color in zip(class_names, colors):
-            object_class = ObjectClass(
-                setup_id=annotation_setup,
-                class_name=class_name,
-                color=color,
-                description=description  # Assuming single description for all
-            )
-            object_class.save()
-
-        return JsonResponse({'message': 'Project and related data updated successfully'}, status=200)
-    except KeyError as e:
-        return JsonResponse({'error': f'Missing key: {str(e)}'}, status=400)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
-
-def get_project_details():
-    pass
-
-
-def delete_project_details(self, request_object):
-    try:
-        data = request_object
-        project_id = data['project_id']
-
-        try:
-            project = Projects.objects.get(project_id=project_id)
-            images = ImageInfo.objects.filter(project_id=project_id)
-        except Exception as e:
-            return e
-        if len(images) == 1:
-            image = images[0]
-            image.delete()
-            print("Image deleted")
-        project.delete()
-        return JsonResponse({'message': 'Project deleted successfully'})
-    except Projects.DoesNotExist:
-        return JsonResponse({'error': 'Project not found'}, status=404)
 
 
 def __save_polygon_info__(image_id, polygon_info):
@@ -407,16 +304,8 @@ def get_project_setup(project_id):
     project = Projects.objects.get(project_id=project_id)
 
     # Get ProjectSetup related to the project
-    # project_setup = ProjectSetup.objects.filter(project_id=project).select_related('annotation_id')
     project_setup = ProjectSetup.objects.get(project_id=project)
-    # project_setup = project_setup.first()
-
-    # Get AnnotationType
-    # 'annotationId': str(project_setup.annotation_id),
     annotation_type = project_setup.annotation_id
-    # annotation_type = {
-    #     'annotationType': project_setup.annotation_id
-    # }
 
     # Get ObjectClasses related to the project setup
     object_classes = ObjectClass.objects.filter(setup_id=project_setup)
@@ -424,6 +313,7 @@ def get_project_setup(project_id):
         {
             'classId': str(obj_class.class_id),
             'className': obj_class.class_name,
+            'classIndex': obj_class.class_index,
             'color': obj_class.color,
             'description': obj_class.description
         }
@@ -453,13 +343,198 @@ def get_polygons(image_id):
         }
         polygons_list.append(polygon_dict)
     return polygons_list
-#
-# # image_info = ImageInfo()
-#
-# # def update_project(self, project_name, description=None):
-# #     projects = Projects()
-# #     projects.
-#
-# def get_projects_info(project_id):
-#     projects = Projects.objects.all()
-#     return projects
+
+
+def get_annotated_polygons(image_id):
+    """
+    Retrieve annotated polygons for a given image_id and convert them to a list of dictionaries.
+    An annotated polygon is defined as having a non-null class_id.
+
+    Args:
+    - image_id (int): The ID of the image for which to retrieve annotated polygons.
+
+    Returns:
+    - list: A list of dictionaries containing annotated polygon details.
+    """
+    # Query the Polygons model for annotated polygons with the given image_id
+    annotated_polygons = Polygons.objects.filter(image_id=image_id, class_id__isnull=False)
+    # Convert the query result to a list of dictionaries
+    annotated_polygons_list = []
+    for polygon in annotated_polygons:
+        polygon_dict = {
+            'polygonId': str(polygon.polygon_id),
+            'classId': str(polygon.class_id_id),
+            'points': polygon.points,
+            'stabilityScore': polygon.stability_score,
+            'predictedIoU': polygon.predicted_iou,
+            'dateCreated': polygon.date_created.strftime(date_format),
+            'dateModified': polygon.date_modified.strftime(date_format)
+        }
+        annotated_polygons_list.append(polygon_dict)
+    return annotated_polygons_list
+
+
+def save_or_update_object_class(polygon_id, class_id):
+    """
+    Save or update the object class for a given polygon.
+
+    Parameters:
+    - polygon_id: The unique identifier of the polygon.
+    - class_id: The unique identifier of the object class.
+
+    Returns:
+    - dict: A dictionary containing the updated polygon details.
+
+    Raises:
+    - Polygons.DoesNotExist: If the polygon with the given polygon_id does not exist.
+    - ObjectClass.DoesNotExist: If the object class with the given class_id does not exist.
+    - Exception: If there is a general error during the operation.
+    """
+    try:
+        # Fetch the polygon instance
+        polygon = Polygons.objects.get(polygon_id=polygon_id)
+
+        # Fetch the object class instance
+        object_class = ObjectClass.objects.get(class_id=class_id)
+
+        # Update the polygon's class_id
+        polygon.class_id = object_class
+        polygon.save()
+    except Polygons.DoesNotExist:
+        raise ObjectDoesNotExist(f"Polygon with ID {polygon_id} does not exist.")
+
+    except ObjectClass.DoesNotExist:
+        raise ObjectDoesNotExist(f"Object class with ID {class_id} does not exist.")
+
+    except Exception as e:
+        raise Exception(f"An error occurred while saving or updating the object class: {str(e)}")
+
+
+def save_or_update_object_classes(object_class_infos):
+    """
+    Save or update the object classes for multiple polygons.
+
+    Parameters:
+    - polygon_ids: A list of unique identifiers of the polygons.
+    - class_ids: A list of unique identifiers of the object classes.
+
+    Raises:
+    - ValueError: If the lengths of polygon_ids and class_ids do not match.
+    - Polygons.DoesNotExist: If any of the polygons with the given polygon_ids do not exist.
+    - ObjectClass.DoesNotExist: If any of the object classes with the given class_ids do not exist.
+    - Exception: If there is a general error during the operation.
+    """
+    # if len(polygon_ids) != len(class_ids):
+    #     raise ValueError("The lengths of polygon_ids and class_ids must match.")
+    with transaction.atomic():
+        for object_class_info in object_class_infos:
+            polygon_id = object_class_info.polygon_id
+            class_id = object_class_info.class_id
+            save_or_update_object_class(polygon_id, class_id)
+
+
+def get_object_classes(project_id):
+    """
+    Retrieves the object classes associated with a specific project.
+
+    Parameters:
+    - project_id (UUID): The unique identifier of the project.
+
+    Returns:
+    - list: A list of dictionaries containing object class details.
+    """
+    try:
+        # Assuming object classes are related via ProjectSetup
+        project_setup = ProjectSetup.objects.get(project_id=project_id)
+        object_classes = ObjectClass.objects.filter(setup_id=project_setup)
+
+        object_class_list = [
+            {
+                'classId': str(obj_class.class_id),
+                'className': obj_class.class_name,
+                'color': obj_class.color,
+                'description': obj_class.description
+            }
+            for obj_class in object_classes
+        ]
+        return object_class_list
+
+    except ProjectSetup.DoesNotExist:
+        raise ValidationError(f"Project setup with project ID {project_id} does not exist.")
+    except Exception as e:
+        raise Exception(f"An error occurred while retrieving object classes: {str(e)}")
+
+
+def create_export_details(project_id, zip_file_url):
+    """
+    Creates a new export detail record in the database.
+    Parameters:
+    - project_id (UUID): The UUID of the project associated with the export.
+    - zip_file_url (str): The URL where the exported zip file is stored.
+    Returns:
+    - ExportDetails: The created ExportDetails object.
+    """
+    # Ensure the project exists
+    project = Projects.objects.get(project_id=project_id)
+    # Create a new export details entry
+    export_details = ExportDetails.objects.create(
+        project_id=project,
+        zip_file_url=zip_file_url,
+        date_created=timezone.now()
+    )
+    return export_details
+
+
+def save_exported_data(export_id, mask_file_url, rgb_file_url):
+    """
+    Saves exported data files to the database.
+    Parameters:
+    - export_id (UUID): The UUID of the export operation associated with these files.
+    - mask_file_url (str): The URL where the mask file is stored.
+    - rgb_file_url (str): The URL where the RGB file is stored.
+
+    Returns:
+    - ExportedData: The created ExportedData object.
+    """
+    # Ensure the export exists
+    export_details = ExportDetails.objects.get(export_id=export_id)
+    # Create a new exported data entry
+    exported_data = ExportedData.objects.create(
+        export_id=export_details,
+        mask_file_url=mask_file_url,
+        rgb_file_url=rgb_file_url,
+        date_created=timezone.now()
+    )
+    return exported_data
+
+
+def delete_project(project_id):
+    """
+    Delete a project and all related data from the database.
+    Parameters:
+    - project_id: The ID of the project to delete.
+    Raises:
+    - ObjectDoesNotExist: If the project with the given ID does not exist.
+    """
+    # Use a transaction to ensure all related data is deleted atomically
+    # Use a transaction to ensure all related data is deleted atomically
+    with transaction.atomic():
+        # Fetch the project to ensure it exists
+        project = Projects.objects.get(project_id=project_id)
+        # Delete related ExportedData and ExportDetails
+        for export_detail in ExportDetails.objects.filter(project_id=project):
+            ExportedData.objects.filter(export_id=export_detail).delete()
+            export_detail.delete()
+        # Delete all related Polygon objects
+        polygons = Polygons.objects.filter(image_id__project_id=project)
+        polygons.delete()
+        # Delete all related ObjectClass objects
+        object_classes = ObjectClass.objects.filter(setup_id__project_id=project)
+        object_classes.delete()
+        # Delete all related ProjectSetup objects
+        ProjectSetup.objects.filter(project_id=project).delete()
+        # Delete all related ImageInfo objects
+        ImageInfo.objects.filter(project_id=project).delete()
+        # Finally, delete the project itself
+        project.delete()
+        # print(f"Project with ID {project_id} and all related data have been deleted successfully.")

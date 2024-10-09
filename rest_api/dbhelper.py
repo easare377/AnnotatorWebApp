@@ -181,9 +181,10 @@ def save_image_info(project_id, png_image_url, jpg_image_url, image_details):
     Returns:
     - image_info: The created ImageInfo instance.
     """
-    original_filename = image_details.file_name
-    image_width = image_details.width
-    image_height = image_details.height
+    print(image_details)
+    original_filename = image_details["file_name"]
+    image_width = image_details["width"]
+    image_height = image_details["height"]
     #
     project_instance = Projects.objects.get(project_id=project_id)
     # Create a new ImageInfo instance
@@ -197,6 +198,7 @@ def save_image_info(project_id, png_image_url, jpg_image_url, image_details):
         image_height=image_height,
         date_created=timezone.now(),
     )
+
     # Save the instance to the database
     image_info.save()
     return image_info

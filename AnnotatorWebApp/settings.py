@@ -97,13 +97,21 @@ WSGI_APPLICATION = "AnnotatorWebApp.wsgi.application"
 # }
 
 DATABASES = {
+    # "default": {
+    #     "ENGINE": "django.db.backends.postgresql",
+    #     "NAME": "AnnotatorDb",
+    #     "USER": "postgres",
+    #     "PASSWORD": "mandible",
+    #     "HOST": "localhost",
+    #     "PORT": "5432",
+    # }
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "AnnotatorDb",
-        "USER": "postgres",
-        "PASSWORD": "mandible",
-        "HOST": "localhost",
-        "PORT": "5432",
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        "NAME": "update",
+        "USER": "postgres",  # Your PostgreSQL username
+        "PASSWORD": "Gkishore399@",  # Your PostgreSQL password
+        "HOST": "localhost",  # Or the hostname of your PostgreSQL server
+        "PORT": "5433",  # Default PostgreSQL port
     }
 }
 

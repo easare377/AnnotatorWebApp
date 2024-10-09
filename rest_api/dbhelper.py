@@ -221,7 +221,7 @@ def __save_polygon_info__(image_id, polygon_info):
     if not utils.validate_points(polygon_info.points):
         raise ValidationError(
             "points must be in the format [{'x': int, 'y': int}, {'x': int, 'y': int}, {'x': int, "
-            "'y': int}]."
+            "'y': int}] ."
         )
 
     # Fetch the ImageInfo instance

@@ -4,7 +4,7 @@ from ..decorators.route import route
 from rest_api import dbhelper as dbh
 import runpod
 from ..utils.runpod_polygon_info import RunPodPolygonInfo
-
+from rest_api import stopwatch
 
 def generate_polygons(image_url, new_image_size):
     runpod.api_key = "5AKXD6UDVL773K7OGNG7OSEOUPZWX3BLM57XNM33"
@@ -65,6 +65,10 @@ class GeneratePolygonsController(Controller):
         image_width = image_info["imageWidth"]
         image_height = image_info["imageHeight"]
         new_image_size = utils.scale_image_size_to_width((image_width, image_height), 1000)
+        sw = stopwatch.Stopwatch()
+        sw.start()
         pod_polygon_infos = generate_polygons(image_url, new_image_size)
+        sw.stop()
+        print(sw.total_seconds)
         db_polygon_infos = dbh.save_polygon_infos(image_id, pod_polygon_infos)
         return ok(db_polygon_infos)

@@ -10,7 +10,7 @@ import boto3
 from django.core.files.storage import default_storage
 from ..s3_storage.uf_ecl_annotator_bucket import UFECLAnnotatorBucket
 from io import BytesIO
-
+from rest_api import stopwatch
 
 def convert_to_png(pil_image: Image, compress_level: int = 9) -> BytesIO:
     """

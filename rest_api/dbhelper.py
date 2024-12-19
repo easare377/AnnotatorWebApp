@@ -465,6 +465,35 @@ def get_object_classes(project_id):
         raise Exception(f"An error occurred while retrieving object classes: {str(e)}")
 
 
+def get_object_class(class_id):
+    """
+    Retrieves the details of a specific object class by its class ID.
+
+    Parameters:
+    - classId (UUID or str): The unique identifier of the object class.
+
+    Returns:
+    - dict: A dictionary containing object class details.
+    """
+    try:
+        # Assuming classId is a UUID or string that matches the class_id in ObjectClass
+        obj_class = ObjectClass.objects.get(class_id=class_id)
+
+        object_class_details = {
+            'classId': str(obj_class.class_id),
+            'className': obj_class.class_name,
+            'color': obj_class.color,
+            'description': obj_class.description
+        }
+
+        return object_class_details
+
+    except ObjectClass.DoesNotExist:
+        raise ValidationError(f"Object class with ID {class_id} does not exist.")
+    except Exception as e:
+        raise Exception(f"An error occurred while retrieving the object class: {str(e)}")
+
+
 def create_export_details(project_id, zip_file_url):
     """
     Creates a new export detail record in the database.
@@ -485,7 +514,7 @@ def create_export_details(project_id, zip_file_url):
     return export_details
 
 
-def save_exported_data(export_id, mask_file_url, rgb_file_url):
+def save_exported_data(export_id, annotation_file_url, rgb_file_url=None):
     """
     Saves exported data files to the database.
     Parameters:
@@ -501,7 +530,7 @@ def save_exported_data(export_id, mask_file_url, rgb_file_url):
     # Create a new exported data entry
     exported_data = ExportedData.objects.create(
         export_id=export_details,
-        mask_file_url=mask_file_url,
+        annotation_file_url=annotation_file_url,
         rgb_file_url=rgb_file_url,
         date_created=timezone.now()
     )
@@ -523,7 +552,7 @@ def delete_project(project_id):
         project = Projects.objects.get(project_id=project_id)
         # Delete related ExportedData and ExportDetails
         for export_detail in ExportDetails.objects.filter(project_id=project):
-            ExportedData.objects.filter(export_id=export_detail).delete()
+            ExportedSegmentationData.objects.filter(export_id=export_detail).delete()
             export_detail.delete()
         # Delete all related Polygon objects
         polygons = Polygons.objects.filter(image_id__project_id=project)

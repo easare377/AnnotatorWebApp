@@ -5,6 +5,10 @@ from shapely.geometry import Polygon, Point
 from shapely.affinity import affine_transform
 import numpy as np
 import cv2
+from urllib.parse import urlparse
+import os
+import io
+import xml.etree.ElementTree as ET
 
 
 def camel_to_snake(name):
@@ -291,3 +295,195 @@ def scale_image_size_to_width(image_size, new_width):
     aspect_ratio = original_height / original_width
     new_height = int(new_width * aspect_ratio)
     return new_width, new_height
+
+
+def extract_filename_from_url(url: str) -> str:
+    """
+    Extracts the filename without the extension from a given URL.
+
+    Args:
+        url (str): The URL from which to extract the filename.
+
+    Returns:
+        str: The filename without the extension.
+    """
+    # Parse the URL to get the path
+    path = urlparse(url).path
+    # Extract the filename with extension
+    filename_with_extension = os.path.basename(path)
+    # Remove the extension
+    filename, _ = os.path.splitext(filename_with_extension)
+    return filename
+
+
+def get_bbox_from_polygon(polygon):
+    """
+    Calculates the bounding box (xmin, ymin, xmax, ymax) from a polygon.
+
+    Parameters:
+    - polygon (list of dict): A list of dictionaries where each dict has 'x' and 'y' coordinates.
+
+    Returns:
+    - tuple: A tuple containing (xmin, ymin, xmax, ymax).
+    """
+    x_coords = [point['x'] for point in polygon]
+    y_coords = [point['y'] for point in polygon]
+    xmin = min(x_coords)
+    ymin = min(y_coords)
+    xmax = max(x_coords)
+    ymax = max(y_coords)
+    return xmin, ymin, xmax, ymax
+
+
+def write_pascal_voc(folder, filename, bbox_infos, image_dim):
+    """
+    Writes bounding box information in Pascal VOC format into a memory stream.
+    Parameters:
+    - folder (str): Folder name where the image is stored.
+    - filename (str): Name of the image file.
+    - bbox_infos (list of dict): List of dictionaries containing 'class_name' and 'bbox' (xmin, ymin, xmax, ymax).
+    - image_size (tuple): Tuple containing (width, height, depth) of the image.
+    Returns:
+    - io.BytesIO: Memory stream containing the Pascal VOC XML data.
+    """
+    width, height, depth = image_dim
+    # Create the root element <annotation>
+    annotation = ET.Element('annotation')
+    # Create <folder> element
+    folder_elem = ET.SubElement(annotation, 'folder')
+    folder_elem.text = folder
+    # Create <filename> element
+    filename_elem = ET.SubElement(annotation, 'filename')
+    filename_elem.text = filename
+    # Create <size> element
+    size_elem = ET.SubElement(annotation, 'size')
+    width_elem = ET.SubElement(size_elem, 'width')
+    width_elem.text = str(width)
+    height_elem = ET.SubElement(size_elem, 'height')
+    height_elem.text = str(height)
+    depth_elem = ET.SubElement(size_elem, 'depth')
+    depth_elem.text = str(depth)
+    # Iterate over bbox_infos and create objects for each bounding box
+    for bbox_info in bbox_infos:
+        class_name = bbox_info['class_name']
+        xmin, ymin, xmax, ymax = bbox_info['bbox']
+        # Create <object> element for each bbox
+        object_elem = ET.SubElement(annotation, 'object')
+        # Create <name> element for class name
+        name_elem = ET.SubElement(object_elem, 'name')
+        name_elem.text = class_name
+        # Create <bndbox> element for bounding box coordinates
+        bndbox_elem = ET.SubElement(object_elem, 'bndbox')
+        xmin_elem = ET.SubElement(bndbox_elem, 'xmin')
+        xmin_elem.text = str(xmin)
+        ymin_elem = ET.SubElement(bndbox_elem, 'ymin')
+        ymin_elem.text = str(ymin)
+        xmax_elem = ET.SubElement(bndbox_elem, 'xmax')
+        xmax_elem.text = str(xmax)
+        ymax_elem = ET.SubElement(bndbox_elem, 'ymax')
+        ymax_elem.text = str(ymax)
+    # Indent the XML content
+    __indent(annotation)
+    # Convert the ElementTree to a string
+    tree = ET.ElementTree(annotation)
+    xml_str = io.BytesIO()
+    # Write the XML to the memory stream
+    tree.write(xml_str, encoding='utf-8', xml_declaration=True)
+    # Set the stream position to the beginning
+    xml_str.seek(0)
+    return xml_str
+
+
+def __indent(elem, level=0):
+    i = "\n" + level * "  "
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for elem in elem:
+            __indent(elem, level + 1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
+
+
+def write_xml(xml_path, folder, filename, path, image_dimen, bbox_list):
+    """
+    Write an XML file for annotating images with bounding boxes.
+
+    Args:
+        xml_path (str): Path to the XML file to be generated.
+        folder (str): Folder containing the image.
+        filename (str): Name of the image file.
+        path (str): Full path to the image file.
+        image_dimen (tuple): Tuple containing image dimensions (width, height, depth).
+        bbox_list (list): List of tuples, where each tuple contains (class_name, (xmin, ymin, xmax, ymax)).
+    """
+    # Create the root element for the XML file
+    root = Element('annotation')
+
+    # Add basic image information to the XML
+    SubElement(root, 'folder').text = folder
+    SubElement(root, 'filename').text = filename
+    SubElement(root, 'path').text = path
+    source = SubElement(root, 'source')
+    SubElement(source, 'database').text = 'Unknown'
+
+    # Extract image dimensions (width, height, and depth)
+    image_width, image_height, depth = image_dimen
+
+    # Add image size information to the XML
+    size = SubElement(root, 'size')
+    SubElement(size, 'width').text = str(image_width)
+    SubElement(size, 'height').text = str(image_height)
+    SubElement(size, 'depth').text = str(depth)
+
+    # Indicate that segmentation is not present (set to 0)
+    SubElement(root, 'segmented').text = '0'
+
+    # Loop through bounding box information and add it to the XML
+    for bbox_info in bbox_list:
+        bbox, class_name = bbox_info
+        xmin, ymin, xmax, ymax = bbox
+
+        # Create an 'object' element for each bounding box
+        obj = SubElement(root, 'object')
+        SubElement(obj, 'name').text = class_name
+        SubElement(obj, 'pose').text = 'Unspecified'
+        SubElement(obj, 'truncated').text = '0'
+        SubElement(obj, 'difficult').text = '0'
+
+        # Add bounding box coordinates to the 'object' element
+        bbox_elem = SubElement(obj, 'bndbox')
+        SubElement(bbox_elem, 'xmin').text = str(xmin)
+        SubElement(bbox_elem, 'ymin').text = str(ymin)
+        SubElement(bbox_elem, 'xmax').text = str(xmax)
+        SubElement(bbox_elem, 'ymax').text = str(ymax)
+
+    # Helper function to indent the XML content for better readability
+    def __indent(elem, level=0):
+        i = "\n" + level * "  "
+        if len(elem):
+            if not elem.text or not elem.text.strip():
+                elem.text = i + "  "
+            if not elem.tail or not elem.tail.strip():
+                elem.tail = i
+            for elem in elem:
+                __indent(elem, level + 1)
+            if not elem.tail or not elem.tail.strip():
+                elem.tail = i
+        else:
+            if level and (not elem.tail or not elem.tail.strip()):
+                elem.tail = i
+
+    # Indent the XML content
+    __indent(root)
+
+    # Create an ElementTree from the root element
+    tree = ElementTree(root)
+
+    # Write the XML content to the specified file path
+    tree.write(xml_path)

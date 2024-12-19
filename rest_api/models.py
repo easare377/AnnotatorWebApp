@@ -136,12 +136,13 @@ class ExportedData(models.Model):
         Attributes:
             id (UUIDField): A unique identifier for each record.
             export_id (ForeignKey): A foreign key reference to the `ExportDetails` model.
-            mask_file_url (CharField): The URL path to the mask file associated with this export.
+            annotation_file_url (CharField): The URL path to the file containing the annotation associated with this export.
             rgb_file_url (CharField): The URL path to the RGB file associated with this export.
             date_created (DateTimeField): The timestamp when this record was created.
         """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     export_id = models.ForeignKey(ExportDetails, on_delete=models.CASCADE, null=False)
-    mask_file_url = models.CharField(max_length=1000, null=False)
-    rgb_file_url = models.CharField(max_length=1000, null=False)
+    annotation_file_url = models.CharField(max_length=1000, null=False)
+    rgb_file_url = models.CharField(max_length=1000, null=True)
     date_created = models.DateTimeField(default=timezone.now, null=False)
+

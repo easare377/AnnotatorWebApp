@@ -1,9 +1,11 @@
 from ..controller import *
 from ..decorators.route import route
+
 # from rest_api.utils import sam as sam
 from rest_api import dbhelper as dbh
 import runpod
 from ..utils.runpod_polygon_info import RunPodPolygonInfo
+from rest_api import stopwatch
 
 
 def generate_polygons(image_url, new_image_size):
@@ -22,7 +24,7 @@ def generate_polygons(image_url, new_image_size):
             "image_info": {
                 "image_url": image_url,
                 "image_width": width,
-                "image_height": height
+                "image_height": height,
             },
             "model_config": {
                 "points_per_side": 30,
@@ -30,8 +32,8 @@ def generate_polygons(image_url, new_image_size):
                 "stability_score_thresh": 0.5,
                 "crop_n_layers": 1,
                 "crop_n_points_downscale_factor": 2,
-                "min_mask_region_area": 1000
-            }
+                "min_mask_region_area": 1000,
+            },
         }
     }
 
@@ -40,8 +42,7 @@ def generate_polygons(image_url, new_image_size):
     polygons = endpoint.run_sync(input_payload, timeout=120)
     # polygons = worker_output["output"]
     polygons = [
-        [{'x': point[0], 'y': point[1]} for point in points]
-        for points in polygons
+        [{"x": point[0], "y": point[1]} for point in points] for points in polygons
     ]
     polygon_infos = []
     for polygon in polygons:
@@ -55,7 +56,7 @@ def generate_polygons(image_url, new_image_size):
     return polygon_infos
 
 
-@route('projects/data/generate-polygons')
+@route("projects/data/generate-polygons")
 class GeneratePolygonsController(Controller):
     def process_post_request(self, request_object):
         image_id = request_object.image_id
@@ -64,7 +65,13 @@ class GeneratePolygonsController(Controller):
         image_url = image_info["imageUrl"]
         image_width = image_info["imageWidth"]
         image_height = image_info["imageHeight"]
-        new_image_size = utils.scale_image_size_to_width((image_width, image_height), 1000)
+        new_image_size = utils.scale_image_size_to_width(
+            (image_width, image_height), 1000
+        )
+        sw = stopwatch.Stopwatch()
+        sw.start()
         pod_polygon_infos = generate_polygons(image_url, new_image_size)
+        sw.stop()
+        print(sw.total_seconds)
         db_polygon_infos = dbh.save_polygon_infos(image_id, pod_polygon_infos)
         return ok(db_polygon_infos)

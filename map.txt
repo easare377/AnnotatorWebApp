@@ -1,0 +1,98 @@
+
+import os
+import math
+import requests
+
+# Define the tile sources
+dict_sources = {
+    "Google Satellite": {
+        "url": "https://mt1.google.com/vt/lyrs=s&x={0}&y={1}&z={2}",
+        "zmax": 20,
+    },
+    "ESRI Satellite": {
+        "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{2}/{1}/{0}",
+        "zmax": 20,
+    },
+    "Yandex Satellite": {
+        "url": "https://core-sat.maps.yandex.net/tiles?l=sat&v=3.1105.0&x={0}&y={1}&z={2}&scale=1.5&lang=ru_RU",
+        "zmax": 21,
+    },
+    "Bing Satellite": {
+        "url": "https://t1.ssl.ak.tiles.virtualearth.net/tiles/a{0}.jpeg?g=12225&n=z&prx=1",
+        "zmax": 18,
+    },
+}
+
+# Define headers to mimic a browser request
+headers = {
+    "User-Agent": "Mozilla/5.0",
+    "accept": "image/webp,image/apng,*/*;q=0.8",
+    "accept-encoding": "gzip, deflate",
+}
+
+
+def get_tile_xy(lat, lon, zoom):
+    """
+    Converts latitude and longitude to tile x and y coordinates.
+    """
+    tile_size = 256
+    sin_lat = math.sin(lat * math.pi / 180)
+    pixel_x = ((lon + 180) / 360) * tile_size * math.pow(2, zoom)
+    pixel_y = (
+        (0.5 - math.log((1 + sin_lat) / (1 - sin_lat)) / (4 * math.pi))
+        * tile_size
+        * math.pow(2, zoom)
+    )
+    tile_x = int(pixel_x // tile_size)
+    tile_y = int(pixel_y // tile_size)
+    return tile_x, tile_y
+
+
+def fetch_and_save_all_tiles(lat, lon, zoom, folder="tiles"):
+    """
+    Fetches and saves tile images from all sources for the given latitude, longitude, and zoom level.
+    :param lat: Latitude of the target location.
+    :param lon: Longitude of the target location.
+    :param zoom: Zoom level for the map tiles.
+    :param folder: Folder to save the tiles.
+    """
+    # Ensure the output folder exists
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    for source_name, source in dict_sources.items():
+        # Check if the zoom level is within the source's maximum zoom level
+        if zoom > source["zmax"]:
+            print(f"Skipping {source_name}: Max zoom level exceeded.")
+            continue
+
+        # Get the tile coordinates for the given latitude, longitude, and zoom
+        tile_x, tile_y = get_tile_xy(lat, lon, zoom)
+
+        # Generate the full URL for the tile
+        tile_url = source["url"].format(tile_x, tile_y, zoom)
+        print(f"Fetching tile from {source_name} URL: {tile_url}")
+
+        # Set the filename and path to save the tile
+        filename = f"{folder}/{source_name.replace(' ', '_')}_tile_{zoom}_{tile_x}_{tile_y}.jpeg"
+
+        # Download the tile image
+        response = requests.get(tile_url, headers=headers)
+        if response.status_code == 200:
+            with open(filename, "wb") as file:
+                file.write(response.content)
+            print(f"Tile image saved as {filename}")
+        else:
+            print(
+                f"Failed to fetch tile from {source_name}: Status code {response.status_code}"
+            )
+
+
+# Example usage with coordinates and zoom level
+latitude = 6.8404794722222215
+
+longitude = -1.3588412222222224
+zoom_level = 19
+
+# Fetch and save all tiles in the specified folder
+fetch_and_save_all_tiles(latitude, longitude, zoom_level)

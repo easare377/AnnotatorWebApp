@@ -37,11 +37,33 @@ class ImageInfo(models.Model):
     image_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project_id = models.ForeignKey(Projects, on_delete=models.CASCADE, null=False)
     original_filename = models.CharField(max_length=10000, null=False)
-    png_image_url = models.CharField(max_length=1000, null=False)
-    jpg_image_url = models.CharField(max_length=1000, null=False)
+    # png_image_url = models.CharField(max_length=1000, null=False)
+    # jpg_image_url = models.CharField(max_length=1000, null=False)
     image_width = models.IntegerField(null=False)
     image_height = models.IntegerField(null=False)
     date_created = models.DateTimeField(default=timezone.now, null=False)
+
+
+class ImageType(models.TextChoices):
+    JPG = 'JPG'
+    PNG = 'PNG'
+    THUMB = 'THUMB'
+
+
+class UploadedImage(models.Model):
+    """
+    Represents a table used to store uploaded image information.
+
+    Fields:
+    - upload_id (UUIDField): A unique identifier for each uploaded image.
+    - image_id (ForeignKey): A foreign key reference to the ImageInfo model.
+    - image_url (CharField): The unique URL or path to access the uploaded image.
+    - image_type (CharField): The type of image (e.g., JPG, PNG, THUMB). Cannot be null.
+    """
+    upload_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    image_id = models.ForeignKey(ImageInfo, on_delete=models.CASCADE, null=False)
+    image_url = models.CharField(max_length=1000, unique=True, null=False)
+    image_type = models.CharField(max_length=10, choices=ImageType.choices, null=False)
 
 
 class AnnotationType(models.Model):
@@ -136,12 +158,12 @@ class ExportedData(models.Model):
         Attributes:
             id (UUIDField): A unique identifier for each record.
             export_id (ForeignKey): A foreign key reference to the `ExportDetails` model.
-            mask_file_url (CharField): The URL path to the mask file associated with this export.
+            annotation_file_url (CharField): The URL path to the file containing the annotation associated with this export.
             rgb_file_url (CharField): The URL path to the RGB file associated with this export.
             date_created (DateTimeField): The timestamp when this record was created.
         """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     export_id = models.ForeignKey(ExportDetails, on_delete=models.CASCADE, null=False)
-    mask_file_url = models.CharField(max_length=1000, null=False)
-    rgb_file_url = models.CharField(max_length=1000, null=False)
+    annotation_file_url = models.CharField(max_length=1000, null=False)
+    rgb_file_url = models.CharField(max_length=1000, null=True)
     date_created = models.DateTimeField(default=timezone.now, null=False)

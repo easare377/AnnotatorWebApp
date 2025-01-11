@@ -96,25 +96,25 @@ def export_images_to_zip(image_mask_urls):
     with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
         for image_mask_url in image_mask_urls:
             image_url = image_mask_url['image_url']
-            mask_url = image_mask_url['mask_url']
-            rgb_mask_url = image_mask_url['rgb_mask_url']
+            voc_url = image_mask_url['voc_url']
+            # rgb_mask_url = image_mask_url['rgb_mask_url']
             # Download the image
             image_response = requests.get(image_url)
             # Download the mask
-            mask_response = requests.get(mask_url)
+            voc_response = requests.get(voc_url)
             # Download the rgb mask
-            rgb_mask_response = requests.get(rgb_mask_url)
-            if image_response.status_code == 200 and mask_response.status_code == 200 and rgb_mask_response.status_code == 200:
+            # rgb_mask_response = requests.get(rgb_mask_url)
+            if image_response.status_code == 200 and voc_response.status_code == 200:
                 image_data = image_response.content
-                mask_data = mask_response.content
-                rgb_mask_data = rgb_mask_response.content
+                voc_data = voc_response.content
+                # rgb_mask_data = rgb_mask_response.content
                 # Extract the image filename from the URL
                 # Store the image in the "real" folder in the ZIP
-                zip_file.writestr(f'real/{str(count)}.png', image_data)
+                zip_file.writestr(f'images/{str(count)}.png', image_data)
                 # Store the mask in the "mask" folder in the ZIP
-                zip_file.writestr(f'mask/{str(count)}.png', mask_data)
+                zip_file.writestr(f'labels/{str(count)}.xml', voc_data)
                 # Store the rgb mask in the "mask" folder in the ZIP
-                zip_file.writestr(f'rgb/{str(count)}.png', rgb_mask_data)
+                # zip_file.writestr(f'rgb/{str(count)}.png', rgb_mask_data)
                 count += 1
             else:
                 print(f"Failed to download image from {image_url}")
@@ -123,8 +123,27 @@ def export_images_to_zip(image_mask_urls):
     return zip_buffer
 
 
-@route('projects/data/export')
-class ExportDataController(Controller):
+def get_class_name_by_id(object_class_list, class_id):
+    """
+    Retrieves the class name from the object class list using the classId.
+
+    Parameters:
+    - object_class_list (list): A list of dictionaries containing object class details.
+    - classId (str): The unique identifier of the object class.
+
+    Returns:
+    - str: The class name associated with the classId.
+    """
+    for obj_class in object_class_list:
+        if obj_class['classId'] == str(class_id):
+            return obj_class['className']
+
+    # If classId is not found, raise an exception or return a default message
+    raise ValueError(f"Class with ID {class_id} not found.")
+
+
+@route('projects/data/export/export-data-voc')
+class ExportDataVocController(Controller):
 
     def process_post_request(self, project_details: ExportProjectDetails):
         project_id = project_details.project_id
@@ -136,7 +155,7 @@ class ExportDataController(Controller):
         object_classes = dbh.get_object_classes(project_id)
         class_map = create_class_map(class_value_dict, object_classes)
         # mask_urls = []
-        image_mask_urls = []
+        image_voc_urls = []
         storage = UFECLAnnotatorBucket()
         export_folder_name = uuid.uuid4().hex
         for image_info in image_infos:
@@ -148,36 +167,42 @@ class ExportDataController(Controller):
             # Get polygons that have been annotated.
             annotated_polygons = dbh.get_annotated_polygons(image_id)
             if len(annotated_polygons) > 0:
-                polygon_infos = []
+                bbox_infos = []
                 for polygon in annotated_polygons:
-                    polygon_info = dict()
+                    bbox_info = dict()
                     # class_value = class_value_dict[polygon['classId']]
+                    class_id = polygon['classId']
                     class_value = get_class_value(class_value_dict, polygon['classId'])
-                    polygon_info['class_value'] = class_value
-                    polygon_info['points'] = polygon['points']
-                    polygon_infos.append(polygon_info)
+                    bbox_info['class_value'] = class_value
+                    # polygon_info['points'] = polygon['points']
+                    class_name = get_class_name_by_id(object_classes, class_id)
+                    bbox_info['class_name'] = class_name
+                    bbox_info['bbox'] = utils.get_bbox_from_polygon(polygon['points'])
+                    bbox_infos.append(bbox_info)
                 # Convert polygons to mask.
-                mask = utils.polygons_to_mask(polygon_infos, (image_width, image_height))
+                voc = utils.write_pascal_voc('images', blob_name, bbox_infos, (image_width, image_height, 3))
+                # mask = utils.polygons_to_mask(bbox_infos, (image_width, image_height, 3))
                 # Convert multiclass mask to rgb representation.
-                rgb_mask = utils.mask_to_rgb(mask, class_map)
+                # rgb_mask = utils.mask_to_rgb(mask, class_map)
                 # Convert image to an io stream that can be uploaded s3.
-                mask_blob = convert_np_image_to_io(mask)
-                rgb_mask_blob = convert_np_image_to_io(rgb_mask)
+                # mask_blob = convert_np_image_to_io(mask)
+                # rgb_mask_blob = convert_np_image_to_io(rgb_mask)
                 # Save the masks to S3.
-                mask_url = storage.save(f'exports/mask/{export_folder_name}/{blob_name}.png', mask_blob)
-                rgb_mask_url = storage.save(f'exports/rgb/{export_folder_name}/{blob_name}.png', rgb_mask_blob)
-                image_mask_urls.append({'image_url': image_url, 'mask_url': mask_url, 'rgb_mask_url': rgb_mask_url})
-        if len(image_mask_urls) > 0:
+                # voc_url = storage.save(f'exports/mask/{export_folder_name}/{blob_name}.xml', mask_blob)
+                voc_url = storage.save_to_exported_voc_folder(blob_name, voc)
+                # rgb_mask_url = storage.save(f'exports/rgb/{export_folder_name}/{blob_name}.png', rgb_mask_blob)
+                image_voc_urls.append({'image_url': image_url, 'voc_url': voc_url})
+        if len(image_voc_urls) > 0:
             # Create a zip file to store exported data.
-            zip_buffer = export_images_to_zip(image_mask_urls)
+            zip_buffer = export_images_to_zip(image_voc_urls)
             # Save the zip file in s3 bucket.
             zip_url = storage.save(f'exports/zip/{export_folder_name}/{project_name.replace(" ", "").lower()}.zip'
                                    , zip_buffer)
             # Save export operation in db.
             export_id = dbh.create_export_details(project_id, zip_url).export_id
-            for image_mask_url in image_mask_urls:
-                mask_url = image_mask_url['mask_url']
-                rgb_mask_url = image_mask_url['rgb_mask_url']
-                dbh.save_exported_data(export_id, mask_url, rgb_mask_url)
+            for image_voc_url in image_voc_urls:
+                mask_url = image_voc_url['voc_url']
+                # rgb_mask_url = image_voc_url['rgb_mask_url']
+                dbh.save_exported_data(export_id, mask_url)
             return ok(zip_url)
         return ok(None)

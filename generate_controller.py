@@ -2,6 +2,9 @@ import os
 import sys
 
 
+# USAGE
+# python generate_controller.py <app_name> c <controller_name>
+
 def to_pascal_case(snake_str):
     components = snake_str.split('_')
     return ''.join(x.title() for x in components)

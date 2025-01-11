@@ -44,6 +44,13 @@ class ImageInfo(models.Model):
     date_created = models.DateTimeField(default=timezone.now, null=False)
 
 
+# class UploadedImage(models.Model):
+#     upload_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     image_id = models.UUIDField(ImageInfo, on_delete=models.CASCADE, null=False)
+#     image_url = models.CharField(max_length=1000, null=False)
+#     image_type = models.CharField(max_length=50, null=False)  #png, jpg, thumbnail
+
+
 class AnnotationType(models.Model):
     """
     Represents a table used to store annotation types.
@@ -145,4 +152,3 @@ class ExportedData(models.Model):
     annotation_file_url = models.CharField(max_length=1000, null=False)
     rgb_file_url = models.CharField(max_length=1000, null=True)
     date_created = models.DateTimeField(default=timezone.now, null=False)
-

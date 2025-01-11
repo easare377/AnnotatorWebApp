@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.utils import IntegrityError
-from .models import Projects, ImageInfo, ProjectSetup, ObjectClass, AnnotationType
+from .models import Projects, ImageInfo, ProjectSetup, ObjectClass, AnnotationType, ImageType
 
 date_format = '%Y-%m-%d %H:%M:%S'
 
@@ -114,6 +114,34 @@ def get_images(project_id):
     return images_list
 
 
+def __get_uploaded_images_info__(image_id):
+    """
+    Helper function to retrieve the uploaded image URLs based on the provided image_id.
+
+    Parameters:
+    - image_id (UUID): The unique identifier of the image.
+
+    Returns:
+    - dict: A dictionary containing the image URLs for different image types.
+        - 'png': URL for the PNG version of the image.
+        - 'jpg': URL for the JPG version of the image.
+        - 'thumb': URL for the thumbnail version of the image.
+    """
+    uploaded_images = UploadedImage.objects.filter(image_id=image_id)
+    image_urls = {
+        ImageType.PNG.value.lower(): None,
+        ImageType.JPG.value.lower(): None,
+        ImageType.THUMB.value.lower(): None
+    }
+
+    for uploaded_image in uploaded_images:
+        image_type = uploaded_image.image_type.lower()
+        if image_type in image_urls:
+            image_urls[image_type] = uploaded_image.image_url
+
+    return image_urls
+
+
 def get_image_info(image_id):
     """
     Retrieves image information based on the provided image_id.
@@ -125,76 +153,98 @@ def get_image_info(image_id):
     - dict: A dictionary containing the image information, which includes:
         - imageId (str): The unique identifier of the image.
         - originalFilename (str): The original filename of the image.
-        - imageUrl (str): The URL or path to access the image.
+        - imageUrls (dict): The URLs or paths to access the image in different formats (PNG, JPG, THUMB).
         - imageWidth (int): The width of the image in pixels.
         - imageHeight (int): The height of the image in pixels.
         - dateAdded (str): The date and time when the image was added.
-        - dateModified (str): The date and time when the image was last modified.
 
     Raises:
     - ImageInfo.DoesNotExist: If the image with the given image_id does not exist.
-
-    Example:
-    >>> get_image_info('19699044-5ada-4a1b-8924-a523dac47618')
-    {
-        'imageId': '19699044-5ada-4a1b-8924-a523dac47618',
-        'originalFilename': 'image.jpg',
-        'imageUrl': 'https://s3.bucket/19699044-5ada-4a1b-8924-a523dac47618.png',
-        'imageWidth': 3000,
-        'imageHeight': 2000,
-        'dateAdded': '2020-02-02 13:30:23',
-        'dateModified': '2020-02-02 13:30:23'
-    }
     """
     try:
         image = ImageInfo.objects.get(image_id=image_id)
+
         image_dict = {
             'imageId': str(image.image_id),
             'originalFilename': image.original_filename,
-            'imageUrl': image.jpg_image_url,
+            'imageUrls': __get_uploaded_images_info__(image.image_id),
             'imageWidth': image.image_width,
             'imageHeight': image.image_height,
-            'dateAdded': image.date_created.strftime(date_format)
+            'dateAdded': image.date_created.strftime(date_format),
         }
+
         return image_dict
 
     except ImageInfo.DoesNotExist:
         return None
 
 
-def save_image_info(project_id, png_image_url, jpg_image_url, image_details):
+def save_image_info(project_id, png_image_url, jpg_image_url, thumbnail_url, image_details):
     """
-    Save image information to the database.
+    Save image information and associated uploads to the database atomically.
 
     Parameters:
     - project_id: The project to which this image belongs.
-    - original_filename: The original filename of the image.
-    - image_url: The URL or path to access the image.
-    - image_width: The width of the image in pixels.
-    - image_height: The height of the image in pixels.
+    - png_image_url: URL to the PNG version of the image.
+    - jpg_image_url: URL to the JPG version of the image.
+    - thumbnail_url: URL to the thumbnail version of the image.
+    - image_details: Object containing image metadata (e.g., file name, width, height).
 
     Returns:
-    - image_info: The created ImageInfo instance.
+    - ImageInfo: The created ImageInfo instance.
+
+    Raises:
+    - ValueError: If any of the operations fail.
     """
-    original_filename = image_details.file_name
-    image_width = image_details.width
-    image_height = image_details.height
-    #
-    project_instance = Projects.objects.get(project_id=project_id)
-    # Create a new ImageInfo instance
-    image_info = ImageInfo(
-        image_id=uuid.uuid4(),
-        project_id=project_instance,
-        original_filename=original_filename,
-        png_image_url=png_image_url,
-        jpg_image_url=jpg_image_url,
-        image_width=image_width,
-        image_height=image_height,
-        date_created=timezone.now()
-    )
-    # Save the instance to the database
-    image_info.save()
-    return image_info
+    try:
+        with transaction.atomic():
+            # Fetch the project instance
+            project_instance = Projects.objects.get(project_id=project_id)
+
+            # Create the ImageInfo instance
+            image_info = ImageInfo.objects.create(
+                image_id=uuid.uuid4(),
+                project_id=project_instance,
+                original_filename=image_details.file_name,
+                image_width=image_details.width,
+                image_height=image_details.height,
+                date_created=timezone.now()
+            )
+
+            # Save associated uploaded images (PNG, JPG, THUMB)
+            __save_upload_info__(image_info.image_id, png_image_url, ImageType.PNG)
+            __save_upload_info__(image_info.image_id, jpg_image_url, ImageType.JPG)
+            __save_upload_info__(image_info.image_id, thumbnail_url, ImageType.THUMB)
+
+            return image_info
+
+    except Projects.DoesNotExist:
+        raise ValueError(f"Project with ID {project_id} does not exist.")
+    except Exception as e:
+        raise ValueError(f"Failed to save image info: {str(e)}")
+
+
+def __save_upload_info__(image_id, image_url, image_type: ImageType):
+    """
+    Save image upload information to the UploadedImage model.
+
+    Parameters:
+    - image_id (UUID): The ID of the related image.
+    - image_url (str): The URL of the uploaded image.
+    - image_type (ImageType): The type of the image (e.g., JPG, PNG, THUMB).
+
+    Returns:
+    - UploadedImage: The created UploadedImage instance.
+    """
+    try:
+        uploaded_image = UploadedImage.objects.create(
+            image_id_id=image_id,  # Use the ForeignKey field directly
+            image_url=image_url,
+            image_type=image_type.value  # Use the enum's value
+        )
+        return uploaded_image
+    except Exception as e:
+        raise ValueError(f"Failed to save upload info: {str(e)}")
 
 
 def __save_polygon_info__(image_id, polygon_info):

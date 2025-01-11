@@ -37,18 +37,33 @@ class ImageInfo(models.Model):
     image_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project_id = models.ForeignKey(Projects, on_delete=models.CASCADE, null=False)
     original_filename = models.CharField(max_length=10000, null=False)
-    png_image_url = models.CharField(max_length=1000, null=False)
-    jpg_image_url = models.CharField(max_length=1000, null=False)
+    # png_image_url = models.CharField(max_length=1000, null=False)
+    # jpg_image_url = models.CharField(max_length=1000, null=False)
     image_width = models.IntegerField(null=False)
     image_height = models.IntegerField(null=False)
     date_created = models.DateTimeField(default=timezone.now, null=False)
 
 
-# class UploadedImage(models.Model):
-#     upload_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-#     image_id = models.UUIDField(ImageInfo, on_delete=models.CASCADE, null=False)
-#     image_url = models.CharField(max_length=1000, null=False)
-#     image_type = models.CharField(max_length=50, null=False)  #png, jpg, thumbnail
+class ImageType(models.TextChoices):
+    JPG = 'JPG'
+    PNG = 'PNG'
+    THUMB = 'THUMB'
+
+
+class UploadedImage(models.Model):
+    """
+    Represents a table used to store uploaded image information.
+
+    Fields:
+    - upload_id (UUIDField): A unique identifier for each uploaded image.
+    - image_id (ForeignKey): A foreign key reference to the ImageInfo model.
+    - image_url (CharField): The unique URL or path to access the uploaded image.
+    - image_type (CharField): The type of image (e.g., JPG, PNG, THUMB). Cannot be null.
+    """
+    upload_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    image_id = models.ForeignKey(ImageInfo, on_delete=models.CASCADE, null=False)
+    image_url = models.CharField(max_length=1000, unique=True, null=False)
+    image_type = models.CharField(max_length=10, choices=ImageType.choices, null=False)
 
 
 class AnnotationType(models.Model):

@@ -107,7 +107,7 @@ DATABASES = {
     # },
     "default": {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
-        "NAME": "webapp",
+        "NAME": "updated",
         "USER": "postgres",  # Your PostgreSQL username
         "PASSWORD": "Gkishore399@",  # Your PostgreSQL password
         "HOST": "localhost",  # Or the hostname of your PostgreSQL server

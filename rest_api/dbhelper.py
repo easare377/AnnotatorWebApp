@@ -219,7 +219,8 @@ def save_image_info(
 
             # Create the ImageInfo instance
             image_info = ImageInfo.objects.create(
-                image_id=uuid.uuid4(),
+                # image_id=uuid.uuid4(),
+                image_id=image_details["image_id"],
                 project_id=project_instance,
                 original_filename=image_details["file_name"],
                 image_width=image_details["width"],

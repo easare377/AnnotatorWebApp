@@ -9,9 +9,16 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.utils import IntegrityError
-from .models import Projects, ImageInfo, ProjectSetup, ObjectClass, AnnotationType, ImageType
+from .models import (
+    Projects,
+    ImageInfo,
+    ProjectSetup,
+    ObjectClass,
+    AnnotationType,
+    ImageType,
+)
 
-date_format = '%Y-%m-%d %H:%M:%S'
+date_format = "%Y-%m-%d %H:%M:%S"
 
 
 def add_annotation_type_if_not_exist():
@@ -19,8 +26,12 @@ def add_annotation_type_if_not_exist():
     namespace = uuid.NAMESPACE_DNS
     polygon_name = "POLYGON"
     bbox_name = "BBOX"
-    AnnotationType(annotation_id=uuid.uuid5(namespace, polygon_name), annotation_type='POLYGON').save()
-    AnnotationType(annotation_id=uuid.uuid5(namespace, bbox_name), annotation_type='BBOX').save()
+    AnnotationType(
+        annotation_id=uuid.uuid5(namespace, polygon_name), annotation_type="POLYGON"
+    ).save()
+    AnnotationType(
+        annotation_id=uuid.uuid5(namespace, bbox_name), annotation_type="BBOX"
+    ).save()
 
 
 def get_projects():
@@ -29,10 +40,10 @@ def get_projects():
 
     for project in projects:
         project_dict = {
-            'projectId': str(project.project_id),
-            'name': project.project_name,
-            'description': project.description,
-            'dateCreated': project.date_created.strftime(date_format)
+            "projectId": str(project.project_id),
+            "name": project.project_name,
+            "description": project.description,
+            "dateCreated": project.date_created.strftime(date_format),
         }
         project_list.append(project_dict)
 
@@ -42,10 +53,10 @@ def get_projects():
 def get_project_details(project_id):
     project = Projects.objects.get(project_id=project_id)
     project_dict = {
-        'projectId': str(project.project_id),
-        'name': project.project_name,
-        'description': project.description,
-        'dateCreated': project.date_created.strftime(date_format)
+        "projectId": str(project.project_id),
+        "name": project.project_name,
+        "description": project.description,
+        "dateCreated": project.date_created.strftime(date_format),
     }
     return project_dict
 
@@ -66,15 +77,16 @@ def create_project(project_info):
         with transaction.atomic():
             # Create a new project row
             project_model = Projects(
-                project_name=project_name,
-                description=project_description
+                project_name=project_name, description=project_description
             )
             project_model.save()
             # Create a new project setup row
-            annotation_type_instance = AnnotationType.objects.get(annotation_type=annotation_type)
+            annotation_type_instance = AnnotationType.objects.get(
+                annotation_type=annotation_type
+            )
             project_setup_model = ProjectSetup(
                 project_id=project_model,  # Using the project instance directly
-                annotation_id=annotation_type_instance
+                annotation_id=annotation_type_instance,
             )
             project_setup_model.save()
             # Create new object class rows
@@ -88,7 +100,7 @@ def create_project(project_info):
                     class_name=class_name,
                     class_index=index,  # Set the class_index to the current loop index
                     color=object_class_color,
-                    description=object_class_description
+                    description=object_class_description,
                 )
                 object_class_model.save()
     except IntegrityError:
@@ -103,14 +115,16 @@ def get_images(project_id):
     images_list = []
     for image in images:
         image_dict = {
-            'imageId': str(image.image_id),
-            'originalFilename': image.original_filename,
-            'imageUrl': image.png_image_url,
-            'imageWidth': image.image_width,
-            'imageHeight': image.image_height,
-            'dateAdded': image.date_created.strftime(date_format)
+            "imageId": str(image.image_id),
+            "originalFilename": image.original_filename,
+            "imageUrl": f"https://uf-ecl-annotator-bucket.s3.us-east-2.amazonaws.com/images/thumbs/{image.image_id}_320.jpg",
+            "imageWidth": image.image_width,
+            "imageHeight": image.image_height,
+            "dateAdded": image.date_created.strftime(date_format),
         }
+
         images_list.append(image_dict)
+
     return images_list
 
 
@@ -131,7 +145,7 @@ def __get_uploaded_images_info__(image_id):
     image_urls = {
         ImageType.PNG.value.lower(): None,
         ImageType.JPG.value.lower(): None,
-        ImageType.THUMB.value.lower(): None
+        ImageType.THUMB.value.lower(): None,
     }
 
     for uploaded_image in uploaded_images:
@@ -165,12 +179,12 @@ def get_image_info(image_id):
         image = ImageInfo.objects.get(image_id=image_id)
 
         image_dict = {
-            'imageId': str(image.image_id),
-            'originalFilename': image.original_filename,
-            'imageUrls': __get_uploaded_images_info__(image.image_id),
-            'imageWidth': image.image_width,
-            'imageHeight': image.image_height,
-            'dateAdded': image.date_created.strftime(date_format),
+            "imageId": str(image.image_id),
+            "originalFilename": image.original_filename,
+            "imageUrls": __get_uploaded_images_info__(image.image_id),
+            "imageWidth": image.image_width,
+            "imageHeight": image.image_height,
+            "dateAdded": image.date_created.strftime(date_format),
         }
 
         return image_dict
@@ -179,7 +193,9 @@ def get_image_info(image_id):
         return None
 
 
-def save_image_info(project_id, png_image_url, jpg_image_url, thumbnail_url, image_details):
+def save_image_info(
+    project_id, png_image_url, jpg_image_url, thumbnail_url, image_details
+):
     """
     Save image information and associated uploads to the database atomically.
 
@@ -205,11 +221,12 @@ def save_image_info(project_id, png_image_url, jpg_image_url, thumbnail_url, ima
             image_info = ImageInfo.objects.create(
                 image_id=uuid.uuid4(),
                 project_id=project_instance,
-                original_filename=image_details.file_name,
-                image_width=image_details.width,
-                image_height=image_details.height,
-                date_created=timezone.now()
+                original_filename=image_details["file_name"],
+                image_width=image_details["width"],
+                image_height=image_details["height"],
+                date_created=timezone.now(),
             )
+            # print(image_info)
 
             # Save associated uploaded images (PNG, JPG, THUMB)
             __save_upload_info__(image_info.image_id, png_image_url, ImageType.PNG)
@@ -240,7 +257,7 @@ def __save_upload_info__(image_id, image_url, image_type: ImageType):
         uploaded_image = UploadedImage.objects.create(
             image_id_id=image_id,  # Use the ForeignKey field directly
             image_url=image_url,
-            image_type=image_type.value  # Use the enum's value
+            image_type=image_type.value,  # Use the enum's value
         )
         return uploaded_image
     except Exception as e:
@@ -262,8 +279,10 @@ def __save_polygon_info__(image_id, polygon_info):
     """
     # Validate the points format
     if not utils.validate_points(polygon_info.points):
-        raise ValidationError("points must be in the format [{'x': int, 'y': int}, {'x': int, 'y': int}, {'x': int, "
-                              "'y': int}].")
+        raise ValidationError(
+            "points must be in the format [{'x': int, 'y': int}, {'x': int, 'y': int}, {'x': int, "
+            "'y': int}]."
+        )
 
     # Fetch the ImageInfo instance
     try:
@@ -278,18 +297,18 @@ def __save_polygon_info__(image_id, polygon_info):
         stability_score=polygon_info.stability_score,
         predicted_iou=polygon_info.predicted_iou,
         date_created=timezone.now(),
-        date_modified=timezone.now()
+        date_modified=timezone.now(),
     )
     polygon.save()
 
     polygon_dict = {
-        'polygonId': str(polygon.polygon_id),
-        'classId': str(polygon.class_id_id),
-        'points': polygon.points,
-        'stabilityScore': polygon.stability_score,
-        'predictedIoU': polygon.predicted_iou,
-        'dateCreated': polygon.date_created.strftime(date_format),
-        'dateModified': polygon.date_modified.strftime(date_format)
+        "polygonId": str(polygon.polygon_id),
+        "classId": str(polygon.class_id_id),
+        "points": polygon.points,
+        "stabilityScore": polygon.stability_score,
+        "predictedIoU": polygon.predicted_iou,
+        "dateCreated": polygon.date_created.strftime(date_format),
+        "dateModified": polygon.date_modified.strftime(date_format),
     }
     return polygon_dict
 
@@ -318,7 +337,7 @@ def save_polygon_infos(image_id, polygon_infos):
         raise e
     except Exception as e:
         # Log the exception (optional)
-        print(f'Error: {e}')
+        print(f"Error: {e}")
         raise ValueError("Failed to save polygons due to a database error.")
 
 
@@ -361,18 +380,18 @@ def get_project_setup(project_id):
     object_classes = ObjectClass.objects.filter(setup_id=project_setup)
     object_classes_list = [
         {
-            'classId': str(obj_class.class_id),
-            'className': obj_class.class_name,
-            'classIndex': obj_class.class_index,
-            'color': obj_class.color,
-            'description': obj_class.description
+            "classId": str(obj_class.class_id),
+            "className": obj_class.class_name,
+            "classIndex": obj_class.class_index,
+            "color": obj_class.color,
+            "description": obj_class.description,
         }
         for obj_class in object_classes
     ]
     return {
-        'setupId': str(project_setup.setup_id),
-        'annotationType': annotation_type.annotation_type,
-        'objectClasses': object_classes_list
+        "setupId": str(project_setup.setup_id),
+        "annotationType": annotation_type.annotation_type,
+        "objectClasses": object_classes_list,
     }
 
 
@@ -383,13 +402,13 @@ def get_polygons(image_id):
     polygons_list = []
     for polygon in polygons:
         polygon_dict = {
-            'polygonId': str(polygon.polygon_id),
-            'classId': str(polygon.class_id_id),
-            'points': polygon.points,
-            'stabilityScore': polygon.stability_score,
-            'predictedIoU': polygon.predicted_iou,
-            'dateCreated': polygon.date_created.strftime(date_format),
-            'dateModified': polygon.date_modified.strftime(date_format)
+            "polygonId": str(polygon.polygon_id),
+            "classId": str(polygon.class_id_id),
+            "points": polygon.points,
+            "stabilityScore": polygon.stability_score,
+            "predictedIoU": polygon.predicted_iou,
+            "dateCreated": polygon.date_created.strftime(date_format),
+            "dateModified": polygon.date_modified.strftime(date_format),
         }
         polygons_list.append(polygon_dict)
     return polygons_list
@@ -407,18 +426,20 @@ def get_annotated_polygons(image_id):
     - list: A list of dictionaries containing annotated polygon details.
     """
     # Query the Polygons model for annotated polygons with the given image_id
-    annotated_polygons = Polygons.objects.filter(image_id=image_id, class_id__isnull=False)
+    annotated_polygons = Polygons.objects.filter(
+        image_id=image_id, class_id__isnull=False
+    )
     # Convert the query result to a list of dictionaries
     annotated_polygons_list = []
     for polygon in annotated_polygons:
         polygon_dict = {
-            'polygonId': str(polygon.polygon_id),
-            'classId': str(polygon.class_id_id),
-            'points': polygon.points,
-            'stabilityScore': polygon.stability_score,
-            'predictedIoU': polygon.predicted_iou,
-            'dateCreated': polygon.date_created.strftime(date_format),
-            'dateModified': polygon.date_modified.strftime(date_format)
+            "polygonId": str(polygon.polygon_id),
+            "classId": str(polygon.class_id_id),
+            "points": polygon.points,
+            "stabilityScore": polygon.stability_score,
+            "predictedIoU": polygon.predicted_iou,
+            "dateCreated": polygon.date_created.strftime(date_format),
+            "dateModified": polygon.date_modified.strftime(date_format),
         }
         annotated_polygons_list.append(polygon_dict)
     return annotated_polygons_list
@@ -457,7 +478,9 @@ def save_or_update_object_class(polygon_id, class_id):
         raise ObjectDoesNotExist(f"Object class with ID {class_id} does not exist.")
 
     except Exception as e:
-        raise Exception(f"An error occurred while saving or updating the object class: {str(e)}")
+        raise Exception(
+            f"An error occurred while saving or updating the object class: {str(e)}"
+        )
 
 
 def save_or_update_object_classes(object_class_infos):
@@ -500,17 +523,19 @@ def get_object_classes(project_id):
 
         object_class_list = [
             {
-                'classId': str(obj_class.class_id),
-                'className': obj_class.class_name,
-                'color': obj_class.color,
-                'description': obj_class.description
+                "classId": str(obj_class.class_id),
+                "className": obj_class.class_name,
+                "color": obj_class.color,
+                "description": obj_class.description,
             }
             for obj_class in object_classes
         ]
         return object_class_list
 
     except ProjectSetup.DoesNotExist:
-        raise ValidationError(f"Project setup with project ID {project_id} does not exist.")
+        raise ValidationError(
+            f"Project setup with project ID {project_id} does not exist."
+        )
     except Exception as e:
         raise Exception(f"An error occurred while retrieving object classes: {str(e)}")
 
@@ -530,10 +555,10 @@ def get_object_class(class_id):
         obj_class = ObjectClass.objects.get(class_id=class_id)
 
         object_class_details = {
-            'classId': str(obj_class.class_id),
-            'className': obj_class.class_name,
-            'color': obj_class.color,
-            'description': obj_class.description
+            "classId": str(obj_class.class_id),
+            "className": obj_class.class_name,
+            "color": obj_class.color,
+            "description": obj_class.description,
         }
 
         return object_class_details
@@ -541,7 +566,9 @@ def get_object_class(class_id):
     except ObjectClass.DoesNotExist:
         raise ValidationError(f"Object class with ID {class_id} does not exist.")
     except Exception as e:
-        raise Exception(f"An error occurred while retrieving the object class: {str(e)}")
+        raise Exception(
+            f"An error occurred while retrieving the object class: {str(e)}"
+        )
 
 
 def create_export_details(project_id, zip_file_url):
@@ -557,9 +584,7 @@ def create_export_details(project_id, zip_file_url):
     project = Projects.objects.get(project_id=project_id)
     # Create a new export details entry
     export_details = ExportDetails.objects.create(
-        project_id=project,
-        zip_file_url=zip_file_url,
-        date_created=timezone.now()
+        project_id=project, zip_file_url=zip_file_url, date_created=timezone.now()
     )
     return export_details
 
@@ -582,7 +607,7 @@ def save_exported_data(export_id, annotation_file_url, rgb_file_url=None):
         export_id=export_details,
         annotation_file_url=annotation_file_url,
         rgb_file_url=rgb_file_url,
-        date_created=timezone.now()
+        date_created=timezone.now(),
     )
     return exported_data
 

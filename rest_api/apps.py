@@ -7,5 +7,5 @@ class RestApiConfig(AppConfig):
 
     def ready(self):
         from .dbhelper import add_annotation_type_if_not_exist
-
+        #pass
         add_annotation_type_if_not_exist()

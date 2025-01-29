@@ -141,7 +141,7 @@ class ExportDataController(Controller):
         export_folder_name = uuid.uuid4().hex
         for image_info in image_infos:
             image_id = image_info['imageId']
-            image_url = image_info['imageUrl']
+            image_url = image_info['imageUrls']["png"]
             image_width = image_info['imageWidth']
             image_height = image_info['imageHeight']
             blob_name = extract_filename_from_url(image_url)

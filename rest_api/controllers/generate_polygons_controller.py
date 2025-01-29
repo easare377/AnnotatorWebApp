@@ -38,7 +38,7 @@ def generate_polygons(image_url, new_image_size):
     }
 
     # endpoint = runpod.Endpoint("q3st7apndadh4o")
-    endpoint = runpod.Endpoint("19ogby4qdxg6sk")
+    endpoint = runpod.Endpoint("adoqht5dtckgr7")
     polygons = endpoint.run_sync(input_payload, timeout=120)
     # polygons = worker_output["output"]
     polygons = [
@@ -62,7 +62,7 @@ class GeneratePolygonsController(Controller):
         image_id = request_object.image_id
         image_info = dbh.get_image_info(image_id)
         # image_info = dbh
-        image_url = image_info["imageUrl"]
+        image_url = image_info["imageUrls"]["jpg"]
         image_width = image_info["imageWidth"]
         image_height = image_info["imageHeight"]
         new_image_size = utils.scale_image_size_to_width(

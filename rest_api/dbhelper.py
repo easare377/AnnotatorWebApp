@@ -117,7 +117,7 @@ def get_images(project_id):
         image_dict = {
             "imageId": str(image.image_id),
             "originalFilename": image.original_filename,
-            "imageUrl": f"https://uf-ecl-annotator-bucket.s3.us-east-2.amazonaws.com/images/thumbs/{image.image_id}_320.jpg",
+            "imageUrls": __get_uploaded_images_info__(image.image_id),
             "imageWidth": image.image_width,
             "imageHeight": image.image_height,
             "dateAdded": image.date_created.strftime(date_format),

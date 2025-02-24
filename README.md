@@ -17,7 +17,7 @@ Ensure you have the following installed:
 
 ### 1. Clone the Repository
 ```sh
-git clone https://github.com/easare377/Annotator.git
+git clone https://github.com/easare377/Annotator.git](https://github.com/easare377/AnnotatorWebApp.git
 cd Annotator
 ```
 

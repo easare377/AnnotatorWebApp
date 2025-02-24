@@ -6,7 +6,7 @@ import time
 from rest_api.utils import utils as utils
 from django.db import transaction, IntegrityError
 from django.utils import timezone
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import transaction
 from django.db.utils import IntegrityError
 from .models import (
@@ -643,3 +643,52 @@ def delete_project(project_id):
         # Finally, delete the project itself
         project.delete()
         # print(f"Project with ID {project_id} and all related data have been deleted successfully.")
+
+
+# test
+
+
+def delete_image(project_id, image_id):
+    """
+    Deletes an image and all its related data from the database.
+
+    Parameters:
+    - project_id (UUID): The ID of the project.
+    - image_id (UUID): The ID of the image to delete.
+
+    Raises:
+    - ObjectDoesNotExist: If the image does not exist.
+    - ValueError: If an issue occurs during deletion.
+    """
+    try:
+        with transaction.atomic():
+            # Ensure the image exists
+            image = ImageInfo.objects.get(project_id=project_id, image_id=image_id)
+
+            # Delete related UploadedImage records
+            if image:
+                UploadedImage.objects.filter(image_id=image).delete()
+
+            # Delete related Polygons records
+            Polygons.objects.filter(image_id=image).delete()
+
+            # Find all export details related to the project
+            export_details = ExportDetails.objects.filter(project_id=project_id)
+
+            # Delete related ExportedData records
+            ExportedData.objects.filter(export_id__in=export_details).delete()
+
+            # ✅ Delete ExportDetails (ONLY if it's related to this image/project)
+            export_details.delete()
+
+            # Delete the image itself
+            image.delete()
+
+            print(f"Successfully deleted image {image_id} and its related data.")
+
+    except ImageInfo.DoesNotExist:
+        raise ObjectDoesNotExist(
+            f"Image with ID {image_id} under Project {project_id} does not exist."
+        )
+    except Exception as e:
+        raise ValueError(f"Failed to delete image {image_id}: {str(e)}")

@@ -3,11 +3,15 @@ from ..decorators.route import route
 from rest_api import dbhelper as dbh
 
 
-@route("projects/data/annotate-image")
+@route("projects/delete-image")
 class AnnotateImageController(Controller):
 
     def process_post_request(self, request_object):
+        project_id = request_object.project_id
+        image_id = request_object.image_id
+        print(request_object)
+        print("hi")
 
-        object_class_infos = request_object.object_classes
-        dbh.save_or_update_object_classes(object_class_infos)
+        dbh.delete_image(project_id, image_id)
+
         return ok("done")

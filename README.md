@@ -11,6 +11,7 @@ Ensure you have the following installed:
 - [Python 3.8+](https://www.python.org/downloads/)
 - [PostgreSQL 12+](https://www.postgresql.org/download/)
 - [PostGIS](https://postgis.net/install/)
+- [pgAdmin](https://www.pgadmin.org/download/)
 - [Git](https://git-scm.com/)
 - [pip](https://pip.pypa.io/en/stable/installing/)
 - [Virtualenv](https://virtualenv.pypa.io/en/latest/installation/)
@@ -37,22 +38,16 @@ source venv/bin/activate  # On Windows use `venv\Scripts\activate`
 pip install -r requirements.txt
 ```
 
-### 4. Configure PostgreSQL and PostGIS
+### 4. Configure PostgreSQL and PostGIS using pgAdmin
 
-1. Login to PostgreSQL:
-   ```sh
-   psql -U postgres
-   ```
-2. Create a database and enable PostGIS:
+1. Open **pgAdmin** and connect to your PostgreSQL instance.
+2. In the left panel, right-click on **Databases** and select **Create > Database...**
+3. Enter the database name (e.g., `sample`) and click **Save**.
+4. Open the Query Tool and execute:
    ```sql
-   CREATE DATABASE sample;
-
-   \ Connect to the database
-   \c sample;
-
    CREATE EXTENSION postgis;
    ```
-3. Update `DATABASES` settings in `settings.py`:
+5. Update `DATABASES` settings in `settings.py`:
    ```python
    DATABASES = {
        "default": {
@@ -87,3 +82,4 @@ python manage.py runserver
 ```
 
 The application should now be accessible at `http://127.0.0.1:8000/`.
+

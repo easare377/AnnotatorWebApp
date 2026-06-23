@@ -314,6 +314,25 @@ def __save_polygon_info__(image_id, polygon_info):
     return polygon_dict
 
 
+def delete_polygon_infos(image_id):
+    """
+    Delete all polygon instances currently saved for an image.
+
+    Parameters:
+    - image_id: The ID of the related image.
+
+    Returns:
+    - int: The number of deleted polygon records.
+    """
+    try:
+        image_instance = ImageInfo.objects.get(image_id=image_id)
+    except ImageInfo.DoesNotExist:
+        raise ValidationError(f"Image with ID {image_id} does not exist.")
+
+    deleted_count, _ = Polygons.objects.filter(image_id=image_instance).delete()
+    return deleted_count
+
+
 def save_polygon_infos(image_id, polygon_infos):
     """
     Save multiple polygon instances to the database in an atomic operation.
@@ -330,6 +349,7 @@ def save_polygon_infos(image_id, polygon_infos):
     try:
         db_polygon_infos = []
         with transaction.atomic():
+            delete_polygon_infos(image_id)
             for polygon_info in polygon_infos:
                 polygon_info_dict = __save_polygon_info__(image_id, polygon_info)
                 db_polygon_infos.append(polygon_info_dict)

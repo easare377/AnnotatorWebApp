@@ -128,12 +128,28 @@ class Polygons(models.Model):
     """
     polygon_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     image_id = models.ForeignKey(ImageInfo, on_delete=models.CASCADE, null=False)
-    class_id = models.ForeignKey(ObjectClass, on_delete=models.CASCADE, null=True, blank=True)
+    class_id = models.ForeignKey(ObjectClass, on_delete=models.SET_NULL, null=True, blank=True)
     points = models.JSONField(null=False)
     stability_score = models.FloatField(null=False)
     predicted_iou = models.FloatField(null=False)
     date_created = models.DateTimeField(default=timezone.now, null=False)
     date_modified = models.DateTimeField(auto_now=True)
+
+
+class InnerPolygons(models.Model):
+    """
+    Represents holes/background patches within a parent polygon.
+
+    Fields:
+    - inner_polygon_id: Unique identifier for the inner polygon.
+    - polygon_id: Foreign key to relate the hole to its parent polygon.
+    - points: Array of points defining the inner polygon shape.
+    - date_created: Date and time when the inner polygon was created.
+    """
+    inner_polygon_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    polygon_id = models.ForeignKey(Polygons, related_name="inner_polygons", on_delete=models.CASCADE, null=False)
+    points = models.JSONField(null=False)
+    date_created = models.DateTimeField(default=timezone.now, null=False)
 
 
 class ExportDetails(models.Model):

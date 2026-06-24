@@ -6,7 +6,7 @@ import time
 from rest_api.utils import utils as utils
 from django.db import transaction, IntegrityError
 from django.utils import timezone
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
 from django.db.utils import IntegrityError
 from .models import (
@@ -16,6 +16,7 @@ from .models import (
     ObjectClass,
     AnnotationType,
     ImageType,
+    InnerPolygons,
 )
 
 date_format = "%Y-%m-%d %H:%M:%S"
@@ -24,14 +25,11 @@ date_format = "%Y-%m-%d %H:%M:%S"
 def add_annotation_type_if_not_exist():
     # Define a namespace and a name (string) to generate the UUID
     namespace = uuid.NAMESPACE_DNS
-    polygon_name = "POLYGON"
-    bbox_name = "BBOX"
-    AnnotationType(
-        annotation_id=uuid.uuid5(namespace, polygon_name), annotation_type="POLYGON"
-    ).save()
-    AnnotationType(
-        annotation_id=uuid.uuid5(namespace, bbox_name), annotation_type="BBOX"
-    ).save()
+    for annotation_type in ("POLYGON", "BBOX"):
+        AnnotationType.objects.get_or_create(
+            annotation_id=uuid.uuid5(namespace, annotation_type),
+            defaults={"annotation_type": annotation_type},
+        )
 
 
 def get_projects():
@@ -265,6 +263,59 @@ def __save_upload_info__(image_id, image_url, image_type: ImageType):
         raise ValueError(f"Failed to save upload info: {str(e)}")
 
 
+def __get_polygon_value(polygon_info, *keys, default=None):
+    for key in keys:
+        if isinstance(polygon_info, dict) and key in polygon_info:
+            return polygon_info[key]
+        if hasattr(polygon_info, key):
+            return getattr(polygon_info, key)
+    return default
+
+
+def __get_inner_polygon_points(polygon_info):
+    inner_polygons = __get_polygon_value(
+        polygon_info,
+        "inner_polygons",
+        "innerPolygons",
+        "holes",
+        default=[],
+    )
+    if not inner_polygons:
+        return []
+
+    inner_polygon_points = []
+    for inner_polygon in inner_polygons:
+        points = __get_polygon_value(inner_polygon, "points", default=inner_polygon)
+        if not utils.validate_points(points):
+            raise ValidationError(
+                "inner polygon points must be in the format [{'x': int, 'y': int}, {'x': int, 'y': int}, "
+                "{'x': int, 'y': int}]."
+            )
+        inner_polygon_points.append(points)
+    return inner_polygon_points
+
+
+def __serialize_inner_polygon__(inner_polygon):
+    return {
+        "innerPolygonId": str(inner_polygon.inner_polygon_id),
+        "points": inner_polygon.points,
+        "dateCreated": inner_polygon.date_created.strftime(date_format),
+    }
+
+
+def __save_inner_polygon_info__(polygon, inner_polygon_points):
+    inner_polygons = []
+    for points in inner_polygon_points:
+        inner_polygon = InnerPolygons(
+            polygon_id=polygon,
+            points=points,
+            date_created=timezone.now(),
+        )
+        inner_polygon.save()
+        inner_polygons.append(__serialize_inner_polygon__(inner_polygon))
+    return inner_polygons
+
+
 def __save_polygon_info__(image_id, polygon_info):
     """
     Save a new polygon instance to the database.
@@ -275,11 +326,27 @@ def __save_polygon_info__(image_id, polygon_info):
 
     The polygon_info object should have the following attributes:
     - points: Array of points defining the polygon shape.
+    - inner_polygons/innerPolygons/holes: Optional array of inner polygon points or objects with points.
     - stability_score: Stability score associated with the polygon.
     - predicted_iou: Predicted intersection over union (IOU) value for the polygon.
     """
+    points = __get_polygon_value(polygon_info, "points")
+    stability_score = __get_polygon_value(
+        polygon_info,
+        "stability_score",
+        "stabilityScore",
+        default=1.0,
+    )
+    predicted_iou = __get_polygon_value(
+        polygon_info,
+        "predicted_iou",
+        "predictedIoU",
+        default=1.0,
+    )
+    inner_polygon_points = __get_inner_polygon_points(polygon_info)
+
     # Validate the points format
-    if not utils.validate_points(polygon_info.points):
+    if not utils.validate_points(points):
         raise ValidationError(
             "points must be in the format [{'x': int, 'y': int}, {'x': int, 'y': int}, {'x': int, "
             "'y': int}]."
@@ -294,24 +361,58 @@ def __save_polygon_info__(image_id, polygon_info):
     # Save the polygon instance
     polygon = Polygons(
         image_id=image_instance,  # Use the ImageInfo instance
-        points=polygon_info.points,
-        stability_score=polygon_info.stability_score,
-        predicted_iou=polygon_info.predicted_iou,
+        points=points,
+        stability_score=stability_score,
+        predicted_iou=predicted_iou,
         date_created=timezone.now(),
         date_modified=timezone.now(),
     )
     polygon.save()
 
+    # Save holes or background patches (inner polygons) if provided.
+    inner_polygons = __save_inner_polygon_info__(polygon, inner_polygon_points)
+
     polygon_dict = {
         "polygonId": str(polygon.polygon_id),
         "classId": str(polygon.class_id_id),
         "points": polygon.points,
+        "innerPolygons": inner_polygons,
         "stabilityScore": polygon.stability_score,
         "predictedIoU": polygon.predicted_iou,
         "dateCreated": polygon.date_created.strftime(date_format),
         "dateModified": polygon.date_modified.strftime(date_format),
     }
     return polygon_dict
+
+
+def save_polygon_infos(image_id, polygon_infos):
+    """
+    Save multiple polygon instances to the database in an atomic operation.
+
+    Parameters:
+    - image_id: The ID of the related image.
+    - polygon_infos: A list of objects, each containing the polygon's points, stability score, and predicted IOU.
+
+    Each polygon_info object should have the following attributes:
+    - points: Array of points defining the polygon shape.
+    - stability_score: Stability score associated with the polygon.
+    - predicted_iou: Predicted intersection over union (IOU) value for the polygon.
+    """
+    try:
+        db_polygon_infos = []
+        with transaction.atomic():
+            # Removes old polygons with no annotations.
+            delete_empty_polygon_infos(image_id)
+            for polygon_info in polygon_infos:
+                polygon_info_dict = __save_polygon_info__(image_id, polygon_info)
+                db_polygon_infos.append(polygon_info_dict)
+        return db_polygon_infos
+    except ValidationError as e:
+        raise e
+    except Exception as e:
+        # Log the exception (optional)
+        print(f"Error: {e}")
+        raise ValueError("Failed to save polygons due to a database error.")
 
 
 def delete_polygon_infos(image_id):
@@ -333,33 +434,26 @@ def delete_polygon_infos(image_id):
     return deleted_count
 
 
-def save_polygon_infos(image_id, polygon_infos):
+def delete_empty_polygon_infos(image_id):
     """
-    Save multiple polygon instances to the database in an atomic operation.
+    Delete polygon instances that have not been annotated for an image.
 
     Parameters:
     - image_id: The ID of the related image.
-    - polygon_infos: A list of objects, each containing the polygon's points, stability score, and predicted IOU.
 
-    Each polygon_info object should have the following attributes:
-    - points: Array of points defining the polygon shape.
-    - stability_score: Stability score associated with the polygon.
-    - predicted_iou: Predicted intersection over union (IOU) value for the polygon.
+    Returns:
+    - int: The number of deleted polygon records.
     """
     try:
-        db_polygon_infos = []
-        with transaction.atomic():
-            delete_polygon_infos(image_id)
-            for polygon_info in polygon_infos:
-                polygon_info_dict = __save_polygon_info__(image_id, polygon_info)
-                db_polygon_infos.append(polygon_info_dict)
-        return db_polygon_infos
-    except ValidationError as e:
-        raise e
-    except Exception as e:
-        # Log the exception (optional)
-        print(f"Error: {e}")
-        raise ValueError("Failed to save polygons due to a database error.")
+        image_instance = ImageInfo.objects.get(image_id=image_id)
+    except ImageInfo.DoesNotExist:
+        raise ValidationError(f"Image with ID {image_id} does not exist.")
+
+    deleted_count, _ = Polygons.objects.filter(
+        image_id=image_instance,
+        class_id__isnull=True,
+    ).delete()
+    return deleted_count
 
 
 def get_project_setup(project_id):
@@ -648,7 +742,7 @@ def delete_project(project_id):
         project = Projects.objects.get(project_id=project_id)
         # Delete related ExportedData and ExportDetails
         for export_detail in ExportDetails.objects.filter(project_id=project):
-            ExportedSegmentationData.objects.filter(export_id=export_detail).delete()
+            ExportedData.objects.filter(export_id=export_detail).delete()
             export_detail.delete()
         # Delete all related Polygon objects
         polygons = Polygons.objects.filter(image_id__project_id=project)

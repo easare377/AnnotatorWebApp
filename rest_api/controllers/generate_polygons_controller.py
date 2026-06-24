@@ -85,6 +85,51 @@ def generate_polygons_from_sam_local(input_payload):
     return worker_output.get("output", worker_output)
 
 
+def get_worker_polygon_value(polygon, *keys, default=None):
+    for key in keys:
+        if isinstance(polygon, dict) and key in polygon:
+            return polygon[key]
+        if hasattr(polygon, key):
+            return getattr(polygon, key)
+    return default
+
+
+def convert_worker_point(point):
+    if isinstance(point, dict):
+        return {"x": point.get("x"), "y": point.get("y")}
+    return {"x": point[0], "y": point[1]}
+
+
+def convert_worker_points(points):
+    return [convert_worker_point(point) for point in points]
+
+
+def convert_worker_polygon_to_polygon_info(polygon):
+    if isinstance(polygon, dict):
+        points = get_worker_polygon_value(polygon, "points", default=[])
+        inner_polygons = get_worker_polygon_value(
+            polygon,
+            "inner_polygons",
+            "innerPolygons",
+            "holes",
+            default=[],
+        )
+    else:
+        points = polygon
+        inner_polygons = []
+
+    converted_inner_polygons = [
+        convert_worker_points(get_worker_polygon_value(inner_polygon, "points", default=inner_polygon))
+        for inner_polygon in inner_polygons
+    ]
+    return RunPodPolygonInfo(
+        1.0,
+        1.0,
+        convert_worker_points(points),
+        converted_inner_polygons,
+    )
+
+
 def generate_polygons(image_url, image_size, new_image_size, prompts):
     image_info = {
         "image_url": image_url,
@@ -108,12 +153,9 @@ def generate_polygons(image_url, image_size, new_image_size, prompts):
     }
     # polygons = generate_polygons_from_runpod(input_payload)
     polygons = generate_polygons_from_sam_local(input_payload)
-    polygons = [
-        [{"x": point[0], "y": point[1]} for point in points] for points in polygons
-    ]
     polygon_infos = []
     for polygon in polygons:
-        polygon_info = RunPodPolygonInfo(1.0, 1.0, polygon)
+        polygon_info = convert_worker_polygon_to_polygon_info(polygon)
         polygon_infos.append(polygon_info)
     return polygon_infos
 

@@ -301,6 +301,45 @@ def scale_image_size_to_width(image_size, new_width):
     return new_width, new_height
 
 
+def scale_image_size_to_max_dim_if_larger(image_size, max_dim):
+    """
+    Scales an image so that its largest dimension equals max_dim,
+    while maintaining the aspect ratio.
+
+    If both width and height are smaller than max_dim, the original size
+    is preserved.
+
+    Parameters:
+    - image_size (tuple[int, int]): Original image size as (width, height).
+    - max_dim (int): Maximum allowed dimension.
+
+    Returns:
+    - tuple[int, int]: The new image size as (width, height).
+    """
+    original_width, original_height = image_size
+
+    if original_width <= 0 or original_height <= 0:
+        raise ValueError("Image width and height must be greater than 0.")
+
+    if max_dim <= 0:
+        raise ValueError("max_dim must be greater than 0.")
+
+    # Preserve original size if image is already smaller than max_dim
+    if original_width < max_dim and original_height < max_dim:
+        return original_width, original_height
+
+    if original_height > original_width:
+        scale_ratio = max_dim / original_height
+        new_height = max_dim
+        new_width = int(original_width * scale_ratio)
+    else:
+        scale_ratio = max_dim / original_width
+        new_width = max_dim
+        new_height = int(original_height * scale_ratio)
+
+    return new_width, new_height
+
+
 def extract_filename_from_url(url: str) -> str:
     """
     Extracts the filename without the extension from a given URL.

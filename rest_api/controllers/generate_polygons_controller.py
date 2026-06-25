@@ -177,8 +177,9 @@ class GeneratePolygonsController(Controller):
         image_url = image_info["imageUrls"]["jpg"]
         image_width = image_info["imageWidth"]
         image_height = image_info["imageHeight"]
-        new_image_size = utils.scale_image_size_to_width(
-            (image_width, image_height), 1000
+        # Scale the image to a width of 1024 pixels
+        new_image_size = utils.scale_image_size_to_max_dim_if_larger(
+            (image_width, image_height), 1024
         )
         sam_prompts = convert_prompts_to_sam_payload(request_object.prompts)
         sw = stopwatch.Stopwatch()
@@ -191,5 +192,6 @@ class GeneratePolygonsController(Controller):
         )
         sw.stop()
         print(sw.total_seconds)
-        db_polygon_infos = dbh.save_polygon_infos(image_id, pod_polygon_infos)
+        dbh.save_polygon_infos(image_id, pod_polygon_infos)
+        db_polygon_infos = dbh.get_polygons(image_id)
         return ok(db_polygon_infos)

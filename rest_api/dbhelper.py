@@ -303,6 +303,22 @@ def __serialize_inner_polygon__(inner_polygon):
     }
 
 
+def __serialize_polygon__(polygon):
+    return {
+        "polygonId": str(polygon.polygon_id),
+        "classId": str(polygon.class_id_id),
+        "points": polygon.points,
+        "innerPolygons": [
+            __serialize_inner_polygon__(inner_polygon)
+            for inner_polygon in polygon.inner_polygons.all()
+        ],
+        "stabilityScore": polygon.stability_score,
+        "predictedIoU": polygon.predicted_iou,
+        "dateCreated": polygon.date_created.strftime(date_format),
+        "dateModified": polygon.date_modified.strftime(date_format),
+    }
+
+
 def __save_inner_polygon_info__(polygon, inner_polygon_points):
     inner_polygons = []
     for points in inner_polygon_points:
@@ -370,19 +386,9 @@ def __save_polygon_info__(image_id, polygon_info):
     polygon.save()
 
     # Save holes or background patches (inner polygons) if provided.
-    inner_polygons = __save_inner_polygon_info__(polygon, inner_polygon_points)
+    __save_inner_polygon_info__(polygon, inner_polygon_points)
 
-    polygon_dict = {
-        "polygonId": str(polygon.polygon_id),
-        "classId": str(polygon.class_id_id),
-        "points": polygon.points,
-        "innerPolygons": inner_polygons,
-        "stabilityScore": polygon.stability_score,
-        "predictedIoU": polygon.predicted_iou,
-        "dateCreated": polygon.date_created.strftime(date_format),
-        "dateModified": polygon.date_modified.strftime(date_format),
-    }
-    return polygon_dict
+    return __serialize_polygon__(polygon)
 
 
 def save_polygon_infos(image_id, polygon_infos):
@@ -512,20 +518,13 @@ def get_project_setup(project_id):
 
 def get_polygons(image_id):
     # Query the Polygons model for polygons with the given image_id
-    polygons = Polygons.objects.filter(image_id=image_id)
+    polygons = Polygons.objects.filter(image_id=image_id).prefetch_related(
+        "inner_polygons"
+    )
     # Convert the query result to a list of dictionaries
     polygons_list = []
     for polygon in polygons:
-        polygon_dict = {
-            "polygonId": str(polygon.polygon_id),
-            "classId": str(polygon.class_id_id),
-            "points": polygon.points,
-            "stabilityScore": polygon.stability_score,
-            "predictedIoU": polygon.predicted_iou,
-            "dateCreated": polygon.date_created.strftime(date_format),
-            "dateModified": polygon.date_modified.strftime(date_format),
-        }
-        polygons_list.append(polygon_dict)
+        polygons_list.append(__serialize_polygon__(polygon))
     return polygons_list
 
 
@@ -543,20 +542,11 @@ def get_annotated_polygons(image_id):
     # Query the Polygons model for annotated polygons with the given image_id
     annotated_polygons = Polygons.objects.filter(
         image_id=image_id, class_id__isnull=False
-    )
+    ).prefetch_related("inner_polygons")
     # Convert the query result to a list of dictionaries
     annotated_polygons_list = []
     for polygon in annotated_polygons:
-        polygon_dict = {
-            "polygonId": str(polygon.polygon_id),
-            "classId": str(polygon.class_id_id),
-            "points": polygon.points,
-            "stabilityScore": polygon.stability_score,
-            "predictedIoU": polygon.predicted_iou,
-            "dateCreated": polygon.date_created.strftime(date_format),
-            "dateModified": polygon.date_modified.strftime(date_format),
-        }
-        annotated_polygons_list.append(polygon_dict)
+        annotated_polygons_list.append(__serialize_polygon__(polygon))
     return annotated_polygons_list
 
 

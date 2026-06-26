@@ -2,6 +2,7 @@ from ..controller import *
 from ..decorators.route import route
 
 # from ..dbhelper import *
+import json
 from rest_api import dbhelper as dbh
 from PIL import Image
 from django.core.files.uploadedfile import UploadedFile
@@ -12,7 +13,6 @@ from django.core.files.storage import default_storage
 from ..s3_storage.uf_ecl_annotator_bucket import UFECLAnnotatorBucket
 from io import BytesIO
 from rest_api import stopwatch
-import requests
 import base64
 from ..models import (
     Projects,
@@ -22,6 +22,11 @@ from ..models import (
     AnnotationType,
     ImageType,
 )
+
+
+LAMBDA_FUNCTION_NAME = "test_api_gateway"
+LAMBDA_REGION = "us-east-2"
+lambda_client = boto3.client("lambda", region_name=LAMBDA_REGION)
 
 
 def convert_to_png(pil_image: Image, compress_level: int = 9) -> BytesIO:
@@ -134,22 +139,32 @@ class UploadImageController(Controller):
             "image": str(image_data),
         }
 
-        # Call the Lambda function through API Gateway
-        lambda_url = (
-            "https://ksdxgew5kf.execute-api.us-east-2.amazonaws.com/test/upload"
+        # Call the Lambda function directly. The deployed Lambda still expects
+        # the API Gateway event shape, so wrap the payload in a JSON body field.
+        response = lambda_client.invoke(
+            FunctionName=LAMBDA_FUNCTION_NAME,
+            InvocationType="RequestResponse",
+            Payload=json.dumps({"body": json.dumps(payload)}).encode("utf-8"),
         )
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(lambda_url, json=payload, headers=headers)
-        print(response)
-        if response.status_code == 200:
-            lambda_response = response.json()
+
+        lambda_payload = json.loads(response["Payload"].read().decode("utf-8"))
+        if response.get("FunctionError"):
+            raise RuntimeError(lambda_payload)
+
+        if lambda_payload.get("statusCode") == 200:
+            lambda_response_body = lambda_payload.get("body", "{}")
+            lambda_response = (
+                json.loads(lambda_response_body)
+                if isinstance(lambda_response_body, str)
+                else lambda_response_body
+            )
 
             # Extract the URLs and image details from Lambda response
             png_image_url = lambda_response["png_image_url"]
             jpg_image_url = lambda_response["jpg_image_url"]
             thumbnail_url = lambda_response["thumnail_url"]
             image_details = lambda_response["image_details"]
-            print(f"Lambda Response: {response.json()}")
+            print(f"Lambda Response: {lambda_response}")
 
             # Save the uploaded image details to the database
             if not Projects.objects.filter(project_id=project_id).exists():
@@ -164,3 +179,5 @@ class UploadImageController(Controller):
 
             # Return response with the image details
             return ok(data=image_infos)
+
+        raise RuntimeError(lambda_payload)

@@ -1,6 +1,8 @@
 from django.db import models
 import uuid
 from django.utils import timezone
+from .objects.enums.image_status import ImageStatus
+from .objects.enums.image_type import ImageType
 
 
 class Projects(models.Model):
@@ -31,23 +33,22 @@ class ImageInfo(models.Model):
     - image_url: URL or path to access the image.
     - image_width: Width of the image in pixels.
     - image_height: Height of the image in pixels.
+    - status: Current state of the image upload and processing workflow.
     - date_added: Date and time when the image was added.
     - date_modified: Date and time when the image was last modified.
     """
     image_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project_id = models.ForeignKey(Projects, on_delete=models.CASCADE, null=False)
     original_filename = models.CharField(max_length=10000, null=False)
-    # png_image_url = models.CharField(max_length=1000, null=False)
-    # jpg_image_url = models.CharField(max_length=1000, null=False)
     image_width = models.IntegerField(null=False)
     image_height = models.IntegerField(null=False)
     date_created = models.DateTimeField(default=timezone.now, null=False)
-
-
-class ImageType(models.TextChoices):
-    JPG = 'JPG'
-    PNG = 'PNG'
-    THUMB = 'THUMB'
+    status = models.CharField(
+        max_length=20,
+        choices=ImageStatus.choices,
+        null=False,
+        default=ImageStatus.PENDING,
+    )
 
 
 class UploadedImage(models.Model):

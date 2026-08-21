@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
 from django.db.utils import IntegrityError
+from .objects.enums.image_status import ImageStatus
 from .models import (
     Projects,
     ImageInfo,
@@ -191,17 +192,12 @@ def get_image_info(image_id):
         return None
 
 
-def save_image_info(
-    project_id, png_image_url, jpg_image_url, thumbnail_url, image_details
-):
+def save_image_info(project_id, image_details):
     """
     Save image information and associated uploads to the database atomically.
 
     Parameters:
     - project_id: The project to which this image belongs.
-    - png_image_url: URL to the PNG version of the image.
-    - jpg_image_url: URL to the JPG version of the image.
-    - thumbnail_url: URL to the thumbnail version of the image.
     - image_details: Object containing image metadata (e.g., file name, width, height).
 
     Returns:
@@ -214,33 +210,32 @@ def save_image_info(
         with transaction.atomic():
             # Fetch the project instance
             project_instance = Projects.objects.get(project_id=project_id)
-
             # Create the ImageInfo instance
             image_info = ImageInfo.objects.create(
-                # image_id=uuid.uuid4(),
-                image_id=image_details["image_id"],
                 project_id=project_instance,
-                original_filename=image_details["file_name"],
-                image_width=image_details["width"],
-                image_height=image_details["height"],
+                original_filename=image_details.file_name,
+                image_width=image_details.width,
+                image_height=image_details.height,
                 date_created=timezone.now(),
+                status=ImageStatus.PENDING,
             )
-            # print(image_info)
-
-            # Save associated uploaded images (PNG, JPG, THUMB)
-            __save_upload_info__(image_info.image_id, png_image_url, ImageType.PNG)
-            __save_upload_info__(image_info.image_id, jpg_image_url, ImageType.JPG)
-            __save_upload_info__(image_info.image_id, thumbnail_url, ImageType.THUMB)
-
             return image_info
-
     except Projects.DoesNotExist:
         raise ValueError(f"Project with ID {project_id} does not exist.")
     except Exception as e:
         raise ValueError(f"Failed to save image info: {str(e)}")
 
 
-def __save_upload_info__(image_id, image_url, image_type: ImageType):
+def update_image_info_status(image_id, status: ImageStatus) -> None:
+    """Update an existing image's status."""
+    updated_count = ImageInfo.objects.filter(image_id=image_id).update(
+        status=status
+    )
+    if updated_count == 0:
+        raise ValueError(f"Image with ID {image_id} does not exist.")
+
+
+def save_upload_info(image_id, upload_id,image_url, image_type: ImageType):
     """
     Save image upload information to the UploadedImage model.
 
@@ -248,16 +243,21 @@ def __save_upload_info__(image_id, image_url, image_type: ImageType):
     - image_id (UUID): The ID of the related image.
     - image_url (str): The URL of the uploaded image.
     - image_type (ImageType): The type of the image (e.g., JPG, PNG, THUMB).
+    - upload_id (UUID, optional): The ID already used to construct the image URL.
 
     Returns:
     - UploadedImage: The created UploadedImage instance.
     """
     try:
-        uploaded_image = UploadedImage.objects.create(
-            image_id_id=image_id,  # Use the ForeignKey field directly
-            image_url=image_url,
-            image_type=image_type.value,  # Use the enum's value
-        )
+        upload_values = {
+            "image_id_id": image_id,
+            "upload_id": upload_id,
+            "image_url": image_url,
+            "image_type": image_type.value,
+        }
+        # if upload_id is not None:
+        #     upload_values["upload_id"] = upload_id
+        uploaded_image = UploadedImage.objects.create(**upload_values)
         return uploaded_image
     except Exception as e:
         raise ValueError(f"Failed to save upload info: {str(e)}")

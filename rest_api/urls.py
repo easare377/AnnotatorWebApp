@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from django.urls import path
 
 from django.conf import settings
@@ -18,3 +20,4 @@ urlpatterns += load_controllers()
 
 if settings.DEBUG:
     urlpatterns += static('/downloads/', document_root=settings.DOWNLOADS_DIR)
+    urlpatterns += static('/uploads/', document_root=Path(settings.BASE_DIR) / 'uploads')

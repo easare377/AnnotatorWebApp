@@ -1,3 +1,5 @@
+import os
+
 """
 Django settings for AnnotatorWebApp project.
 
@@ -11,17 +13,21 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
-import json
-import os
-
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
+
+# Directory where download files will be stored
+DOWNLOADS_DIR = os.path.join(BASE_DIR, "downloads")
+
+# Add the downloads directory to the static files directories
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static"),
+    DOWNLOADS_DIR,
+]
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure--uz=x7f2zi(#9t=8d0oeobrzeiuomicwgp4o^q6&+jxo80bo4y"
@@ -29,8 +35,7 @@ SECRET_KEY = "django-insecure--uz=x7f2zi(#9t=8d0oeobrzeiuomicwgp4o^q6&+jxo80bo4y
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ["*"]
 
 # Application definition
 
@@ -41,9 +46,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django.contrib.gis",
-    "rest_api"
-
+    "rest_api",
+    "corsheaders",
+    "storages",
 ]
 
 MIDDLEWARE = [
@@ -54,7 +59,12 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
 ]
+
+CORS_ALLOW_ALL_ORIGINS = (
+    True  # If this is used then `CORS_ALLOWED_ORIGINS` will not have any effect
+)
 
 ROOT_URLCONF = "AnnotatorWebApp.urls"
 
@@ -76,26 +86,42 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "AnnotatorWebApp.wsgi.application"
 
-
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-DATABASES = {
-    # "default": {
-    #     "ENGINE": "django.db.backends.sqlite3",
-    #     "NAME": BASE_DIR / "db.sqlite3",
-    # },
-        "default": {
-        "ENGINE": "django.contrib.gis.db.backends.postgis",
-        "NAME": "sample",
-        'USER': 'postgres',  # Your PostgreSQL username
-        'PASSWORD': 'Gkishore399@',  # Your PostgreSQL password
-        'HOST': 'localhost',  # Or the hostname of your PostgreSQL server
-        'PORT': '5433',  # Default PostgreSQL port
-    }
-    
-}
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.sqlite3",
+#         "NAME": BASE_DIR / "db.sqlite3",
+#     }
+# }
 
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'AnnotatorDb2',
+        'USER': 'postgres',
+        'PASSWORD': 'mandible',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+    # "default": {
+    #     "ENGINE": "django.contrib.gis.db.backends.postgis",
+    #     "NAME": "updated",
+    #     "USER": "postgres",  # Your PostgreSQL username
+    #     "PASSWORD": "Gkishore399@",  # Your PostgreSQL password
+    #     "HOST": "localhost",  # Or the hostname of your PostgreSQL server
+    #     "PORT": "5433",  # Default PostgreSQL port
+    # }
+    # "default": {
+    #     "ENGINE": "django.db.backends.postgresql",
+    #     "NAME": "test_1",
+    #     "USER": "postgres",
+    #     "PASSWORD": "Postgres123",
+    #     "HOST": "webapplicationdb.cd6oiyg6ikvu.us-east-2.rds.amazonaws.com",
+    #     "PORT": "5432",
+    # }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -115,7 +141,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
@@ -127,7 +152,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
@@ -137,3 +161,14 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# AWS S3
+AWS_ACCESS_KEY_ID = "AKIAYS2NUTWAOK2QYZNU"
+AWS_SECRET_ACCESS_KEY = "BPNPdm24SnK7PHAzOaYaza/CO6JEBMwcDxXDQXSH"
+AWS_STORAGE_BUCKET_NAME = "uf-ecl-annotator-bucket"
+AWS_S3_REGION_NAME = "us-east-2"  # e.g., 'us-west-1'
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = None
+
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"

@@ -1,0 +1,41 @@
+[
+    {
+        "latitude": 29.695046055555554,
+        "longitude": -82.41706855555556,
+        "flight_altitude": 106.671,
+        "date": "2024-03-13",
+        "time": "19:21:59",
+        "angle_of_travel": null,
+        "image_url": "/media/missionimages/DJI_0105_ZpXJWvi.JPG - mission"
+    },
+    {
+        "latitude": 29.695042555555556,
+        "longitude": -82.41707566666668,
+        "flight_altitude": 106.271,
+        "date": "2024-03-13",
+        "time": "19:22:01",
+        "angle_of_travel": 163.10138917972455,
+        "image_url": "/media/missionimages/DJI_0106_ZWB7nbO.JPG - mission"
+    },
+    {
+        "latitude": 29.69501836111111,
+        "longitude": -82.41712733333334,
+        "flight_altitude": 105.971,
+        "date": "2024-03-13",
+        "time": "19:22:03",
+        "angle_of_travel": 162.28857771689516,
+        "image_url": "/media/missionimages/DJI_0107_gsaEfUt.JPG - mission"
+    },
+    {
+        "latitude": 29.69513186111111,
+        "longitude": -82.41705555555556,
+        "flight_altitude": 106.071,
+        "date": "2024-03-13",
+        "time": "19:23:03",
+        "angle_of_travel": 3.9307431245234374,
+        "image_url": "/media/missionimages/DJI_0137_pbQdMWF.JPG - mission"
+    }
+]
+
+
+

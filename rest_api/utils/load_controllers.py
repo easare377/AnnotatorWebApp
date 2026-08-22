@@ -40,5 +40,5 @@ def load_controllers():
 
             for route, controller in controllers:
                 urlpatterns.append(path(route, controller.as_view()))
-    print(urlpatterns)
+
     return urlpatterns

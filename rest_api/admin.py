@@ -5,6 +5,6 @@ from .models import *
 admin.site.register(Projects)
 admin.site.register(ImageInfo)
 admin.site.register(AnnotationType)
-admin.site.register(AnnotationSetup)
+admin.site.register(ProjectSetup)
 admin.site.register(ObjectClass)
 admin.site.register(Polygons)

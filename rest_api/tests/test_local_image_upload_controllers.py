@@ -64,11 +64,12 @@ class LocalImageUploadControllerTests(TestCase):
                 self.assertEqual(upload_response.json()["imageId"], str(image_id))
                 self.assertEqual(
                     upload_response.json()["storageKey"],
-                    f"uploads/original/{image_id}",
+                    f"userdata/uploads/original/{image_id}",
                 )
                 self.assertEqual(
                     (
                         Path(temporary_directory)
+                        / "userdata"
                         / "uploads"
                         / "original"
                         / str(image_id)

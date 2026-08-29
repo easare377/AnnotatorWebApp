@@ -54,7 +54,7 @@ class CompleteImageUploadControllerTests(TestCase):
                 image_height=10,
                 status=ImageStatus.UPLOADED,
             )
-            original_directory = base_dir / "uploads" / "original"
+            original_directory = base_dir / "userdata" / "uploads" / "original"
             original_directory.mkdir(parents=True)
             (original_directory / str(pending_image.image_id)).write_bytes(
                 make_test_png()
@@ -88,13 +88,14 @@ class CompleteImageUploadControllerTests(TestCase):
                         else image_type.value.lower()
                     )
                     self.assertIn(
-                        f"/api/uploads/{directory}/",
+                        f"/api/userdata/uploads/{directory}/",
                         stored_image.image_url,
                     )
                     extension = "png" if image_type == ImageType.PNG else "jpg"
                     self.assertTrue(
                         (
                             base_dir
+                            / "userdata"
                             / "uploads"
                             / directory
                             / f"{stored_image.upload_id}.{extension}"
@@ -156,7 +157,11 @@ class CompleteImageUploadControllerTests(TestCase):
                 )
 
                 original_path = (
-                    base_dir / "uploads" / "original" / str(pending_image.image_id)
+                    base_dir
+                    / "userdata"
+                    / "uploads"
+                    / "original"
+                    / str(pending_image.image_id)
                 )
                 original_path.parent.mkdir(parents=True)
                 original_path.write_bytes(make_test_png())

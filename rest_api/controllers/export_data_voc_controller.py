@@ -2,6 +2,7 @@ from ..controller import *
 from ..decorators.route import route
 from rest_api import dbhelper as dbh
 from ..objects.export_project_details import ExportProjectDetails
+from ..objects.url_paths import EXPORTED_VOCS_PATH
 from rest_api.utils import utils
 import cv2
 import numpy as np
@@ -188,16 +189,20 @@ class ExportDataVocController(Controller):
                 # mask_blob = convert_np_image_to_io(mask)
                 # rgb_mask_blob = convert_np_image_to_io(rgb_mask)
                 # Save the masks to S3.
-                # voc_url = storage.save(f'exports/mask/{export_folder_name}/{blob_name}.xml', mask_blob)
                 voc_url = storage.save_to_exported_voc_folder(blob_name, voc)
-                # rgb_mask_url = storage.save(f'exports/rgb/{export_folder_name}/{blob_name}.png', rgb_mask_blob)
                 image_voc_urls.append({'image_url': image_url, 'voc_url': voc_url})
         if len(image_voc_urls) > 0:
             # Create a zip file to store exported data.
             zip_buffer = export_images_to_zip(image_voc_urls)
             # Save the zip file in s3 bucket.
-            zip_url = storage.save(f'exports/zip/{export_folder_name}/{project_name.replace(" ", "").lower()}.zip'
-                                   , zip_buffer)
+            zip_url = storage.save(
+                str(
+                    EXPORTED_VOCS_PATH
+                    / export_folder_name
+                    / f'{project_name.replace(" ", "").lower()}.zip'
+                ),
+                zip_buffer,
+            )
             # Save export operation in db.
             export_id = dbh.create_export_details(project_id, zip_url).export_id
             for image_voc_url in image_voc_urls:

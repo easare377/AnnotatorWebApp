@@ -6,13 +6,13 @@ from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, override_settings
 
-from rest_api.image_conversion.image_conversion_handler_factory import (
+from rest_api.objects.image_conversion_handler_factory import (
     get_image_conversion_handler,
 )
-from rest_api.image_conversion.lambda_image_conversion_handler import (
+from rest_api.objects.lambda_image_conversion_handler import (
     LambdaImageConversionHandler,
 )
-from rest_api.image_conversion.local_image_conversion_handler import (
+from rest_api.objects.local_image_conversion_handler import (
     LocalImageConversionHandler,
 )
 from rest_api.interfaces.i_image_conversion_handler import IImageConversionHandler
@@ -45,7 +45,7 @@ class ImageConversionHandlerTests(SimpleTestCase):
         self.assertIsInstance(handler, IImageConversionHandler)
 
     @patch(
-        "rest_api.image_conversion.local_image_conversion_handler.requests.post"
+        "rest_api.objects.local_image_conversion_handler.requests.post"
     )
     def test_local_handler_posts_the_common_batch_payload(self, post):
         response = Mock()
@@ -59,14 +59,16 @@ class ImageConversionHandlerTests(SimpleTestCase):
         outputs = [
             {
                 "upload_id": "upload-id",
-                "output_url": "http://localhost:8000/api/uploads/image.png",
+                "output_url": (
+                    "http://localhost:8000/api/userdata/uploads/image.png"
+                ),
                 "ext": "png",
                 "size": None,
             }
         ]
 
         result = handler.convert(
-            "http://localhost:8000/api/uploads/original/image-id",
+            "http://localhost:8000/api/userdata/uploads/original/image-id",
             outputs,
         )
 
@@ -75,13 +77,13 @@ class ImageConversionHandlerTests(SimpleTestCase):
             "http://localhost:8000/api/projects/data/convert-image",
             json={
                 "originalUrl": (
-                    "http://localhost:8000/api/uploads/original/image-id"
+                    "http://localhost:8000/api/userdata/uploads/original/image-id"
                 ),
                 "outputs": [
                     {
                         "uploadId": "upload-id",
                         "outputUrl": (
-                            "http://localhost:8000/api/uploads/image.png"
+                            "http://localhost:8000/api/userdata/uploads/image.png"
                         ),
                         "ext": "png",
                         "size": None,

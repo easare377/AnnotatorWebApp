@@ -13,17 +13,17 @@ from django.core.signing import TimestampSigner
 
 from ..controller import Controller, ok
 from ..decorators.route import route
+from ..objects.url_paths import ORIGINAL_UPLOADS_PATH
 from rest_api import dbhelper as dbh
 
 
-ORIGINAL_IMAGE_PREFIX = "uploads/original"
 UPLOAD_LINK_SALT = "rest_api.local-image-upload"
 DEFAULT_MAX_UPLOAD_LINKS_PER_REQUEST = 100
 
 
 def original_image_storage_key(image_id: str) -> str:
     """Return the local-storage key for an image awaiting conversion."""
-    return f"{ORIGINAL_IMAGE_PREFIX}/{image_id}"
+    return str(ORIGINAL_UPLOADS_PATH / image_id)
 
 
 def validate_upload_count(upload_count) -> int:

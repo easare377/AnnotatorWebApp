@@ -1,6 +1,7 @@
 from ..controller import *
 from ..decorators.route import route
 from ..objects.export_project_details import ExportProjectDetails
+from ..objects.url_paths import EXPORTED_JSONS_PATH
 from ..s3_storage.uf_ecl_annotator_bucket import UFECLAnnotatorBucket
 from rest_api import dbhelper as dbh
 import uuid
@@ -105,8 +106,14 @@ class ExportJsonDataController(Controller):
             # Create a zip file to store exported data.
             zip_buffer = export_json_to_zip(json_infos)
             # Save the zip file in s3 bucket.
-            zip_url = storage.save(f'exports/zip/{export_folder_name}/{project_name.replace(" ", "").lower()}.zip'
-                                   , zip_buffer)
+            zip_url = storage.save(
+                str(
+                    EXPORTED_JSONS_PATH
+                    / export_folder_name
+                    / f'{project_name.replace(" ", "").lower()}.zip'
+                ),
+                zip_buffer,
+            )
             # Save export operation in db.
             export_id = dbh.create_export_details(project_id, zip_url).export_id
             for json_info in json_infos:

@@ -1,15 +1,21 @@
 from rest_api.objects.model_config import ModelConfig
-import json
 import os
 
 from ..controller import *
 from ..decorators.route import route
+from ..interfaces.i_generate_polygons_handler import IGeneratePolygonsHandler
+from ..polygon_generation.lambda_generate_polygons_handler import (
+    LambdaGeneratePolygonsHandler,
+)
+from ..polygon_generation.local_generate_polygons_handler import (
+    LocalGeneratePolygonsHandler,
+)
+from ..polygon_generation.runpod_generate_polygons_handler import (
+    RunPodGeneratePolygonsHandler,
+)
 
 # from rest_api.utils import sam as sam
 from rest_api import dbhelper as dbh
-import boto3
-import requests
-import runpod
 from ..utils.runpod_polygon_info import RunPodPolygonInfo
 from rest_api import stopwatch
 from shapely.geometry import GeometryCollection, MultiPolygon, Polygon as ShapelyPolygon
@@ -18,15 +24,6 @@ from shapely.ops import unary_union
 
 MIN_POLYGON_AREA = 1.0
 
-
-def convert_to_jsonable(value):
-    if isinstance(value, dict):
-        return {key: convert_to_jsonable(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [convert_to_jsonable(item) for item in value]
-    if hasattr(value, "__dict__"):
-        return convert_to_jsonable(vars(value))
-    return value
 
 def convert_prompts_to_sam_payload(prompts):
     if not prompts:
@@ -67,49 +64,6 @@ def convert_prompts_to_sam_payload(prompts):
         "negative_points": [point_to_xy(point) for point in negative_points],
         "bbox": bbox_to_xyxy(bbox),
     }
-
-
-def generate_polygons_from_runpod(input_payload):
-    runpod.api_key = "5AKXD6UDVL773K7OGNG7OSEOUPZWX3BLM57XNM33"
-    endpoint = runpod.Endpoint("adoqht5dtckgr7")
-    polygons = endpoint.run_sync(input_payload, timeout=120)
-    return polygons
-
-
-def generate_polygons_from_sam_local(input_payload):
-    sam_local_url = os.getenv("SAM_WORKER_LOCAL_URL", "http://localhost:8001/run")
-    if not sam_local_url.endswith("/run"):
-        sam_local_url = f"{sam_local_url.rstrip('/')}/run"
-
-    response = requests.post(
-        sam_local_url,
-        json=convert_to_jsonable(input_payload),
-        timeout=120,
-    )
-    response.raise_for_status()
-
-    worker_output = response.json()
-    return worker_output.get("output", worker_output)
-
-
-def generate_polygons_from_sam_lambda(input_payload):
-    lambda_client = boto3.client(
-        "lambda",
-        region_name=os.getenv("SAM_LAMBDA_REGION", "us-east-2"),
-    )
-    response = lambda_client.invoke(
-        FunctionName=os.getenv("SAM_LAMBDA_FUNCTION_NAME", "sam_inference"),
-        InvocationType="RequestResponse",
-        Payload=json.dumps(convert_to_jsonable(input_payload)).encode("utf-8"),
-    )
-
-    lambda_payload = json.loads(response["Payload"].read().decode("utf-8"))
-    if response.get("FunctionError"):
-        raise RuntimeError(lambda_payload)
-    if lambda_payload.get("error"):
-        raise RuntimeError(lambda_payload)
-
-    return lambda_payload.get("output", lambda_payload)
 
 
 def get_worker_polygon_value(polygon, *keys, default=None):
@@ -318,39 +272,16 @@ def remove_annotated_polygon_overlaps(polygon_infos, annotated_polygon_infos):
     return adjusted_polygon_infos
 
 
-def generate_polygons(image_url, image_size, new_image_size, prompts):
-    image_info = {
-        "image_url": image_url,
-        "image_size": image_size,
-        "new_image_size": new_image_size,
-    }
-    model_config = ModelConfig(points_per_side=30, 
-                               pred_iou_thresh=0.5, 
-                               stability_score_thresh=0.5,
-                                crop_n_layers=1, 
-                                crop_n_points_downscale_factor=2, 
-                                min_mask_region_area=1000)
-
-    # polygons = worker_output["output"]
-    input_payload = {
-        "input": {
-            "image_info": image_info,
-            "model_config": model_config,
-            "prompts": prompts
-        }
-    }
+def get_generate_polygons_handler() -> IGeneratePolygonsHandler:
+    """Return the polygon-generation handler selected by configuration."""
     sam_backend = os.getenv("SAM_BACKEND", "local").lower()
     if sam_backend == "lambda":
-        polygons = generate_polygons_from_sam_lambda(input_payload)
-    elif sam_backend == "runpod":
-        polygons = generate_polygons_from_runpod(input_payload)
-    else:
-        polygons = generate_polygons_from_sam_local(input_payload)
-    polygon_infos = []
-    for polygon in polygons:
-        polygon_info = convert_worker_polygon_to_polygon_info(polygon)
-        polygon_infos.append(polygon_info)
-    return polygon_infos
+        return LambdaGeneratePolygonsHandler()
+    if sam_backend == "runpod":
+        return RunPodGeneratePolygonsHandler()
+    if sam_backend == "local":
+        return LocalGeneratePolygonsHandler()
+    raise ValueError(f"Unsupported SAM backend: {sam_backend}")
 
 # def create_prompts(prompts):
 #     positive_points = [[100, 150], [200, 250]]
@@ -378,12 +309,31 @@ class GeneratePolygonsController(Controller):
         sw = stopwatch.Stopwatch()
         sw.start()
         # Generate polygons using the SAM model
-        pod_polygon_infos = generate_polygons(
-            image_url,
-            (image_width, image_height),
-            new_image_size,
-            sam_prompts,
+        model_config = ModelConfig(
+            points_per_side=30,
+            pred_iou_thresh=0.5,
+            stability_score_thresh=0.5,
+            crop_n_layers=1,
+            crop_n_points_downscale_factor=2,
+            min_mask_region_area=1000,
         )
+        input_payload = {
+            "input": {
+                "image_info": {
+                    "image_url": image_url,
+                    "image_size": (image_width, image_height),
+                    "new_image_size": new_image_size,
+                },
+                "model_config": model_config,
+                "prompts": sam_prompts,
+            }
+        }
+        generation_handler = get_generate_polygons_handler()
+        polygons = generation_handler.generate(input_payload)
+        pod_polygon_infos = [
+            convert_worker_polygon_to_polygon_info(polygon)
+            for polygon in polygons
+        ]
         sw.stop()
         print(sw.total_seconds)
         annotated_polygon_infos = dbh.get_annotated_polygons(image_id)

@@ -11,6 +11,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 from ..controller import Controller, ok
 from ..decorators.route import route
+from ..objects.url_paths import USER_DATA_PATH
 
 
 DEFAULT_MAX_SOURCE_BYTES = 100 * 1024 * 1024
@@ -28,25 +29,33 @@ OUTPUT_FORMATS = {
 
 
 def local_upload_path(url: str) -> Path | None:
-    """Resolve a local upload URL to a safe path below ``BASE_DIR/uploads``."""
+    """Resolve current or legacy local-storage URLs below ``BASE_DIR``."""
     parsed_url = urlparse(str(url))
     decoded_path = unquote(parsed_url.path)
     relative_path = None
+    storage_root = None
 
-    for prefix in ("/api/uploads/", "/uploads/"):
+    user_data_root = Path(settings.BASE_DIR).joinpath(*USER_DATA_PATH.parts)
+    storage_locations = (
+        (f"/api/{USER_DATA_PATH.as_posix()}/", user_data_root),
+        (f"/{USER_DATA_PATH.as_posix()}/", user_data_root),
+        ("/api/uploads/", Path(settings.BASE_DIR) / "uploads"),
+        ("/uploads/", Path(settings.BASE_DIR) / "uploads"),
+    )
+    for prefix, candidate_root in storage_locations:
         if decoded_path.startswith(prefix):
             relative_path = decoded_path[len(prefix) :]
+            storage_root = candidate_root.resolve()
             break
 
-    if relative_path is None:
+    if relative_path is None or storage_root is None:
         return None
 
-    upload_root = (Path(settings.BASE_DIR) / "uploads").resolve()
-    resolved_path = (upload_root / relative_path).resolve()
+    resolved_path = (storage_root / relative_path).resolve()
     try:
-        resolved_path.relative_to(upload_root)
+        resolved_path.relative_to(storage_root)
     except ValueError:
-        raise ValueError("The upload URL points outside the uploads directory.")
+        raise ValueError("The storage URL points outside its configured directory.")
     return resolved_path
 
 

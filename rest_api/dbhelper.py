@@ -21,6 +21,53 @@ from .models import (
 )
 
 date_format = "%Y-%m-%d %H:%M:%S"
+MAX_OBJECT_CLASSES = 255
+
+
+def __normalize_project_name(project_name):
+    if not isinstance(project_name, str):
+        raise ValueError("Project name cannot be empty.")
+
+    normalized_project_name = project_name.strip()
+    if not normalized_project_name:
+        raise ValueError("Project name cannot be empty.")
+    if len(normalized_project_name) > 50:
+        raise ValueError("Project name cannot be more than 50 characters.")
+    if not any(character.isalnum() for character in normalized_project_name):
+        raise ValueError("Project name must contain at least one letter or number.")
+    if normalized_project_name[0].isnumeric():
+        raise ValueError("Project name cannot begin with a number.")
+    if not all(
+        character.isalnum() or character in " -_"
+        for character in normalized_project_name
+    ):
+        raise ValueError(
+            "Project name can only contain letters, numbers, spaces, hyphens, and underscores."
+        )
+
+    return normalized_project_name
+
+
+def __validate_class_name(class_name):
+    if not isinstance(class_name, str) or not class_name:
+        raise ValueError("Class name cannot be empty.")
+    if not class_name[0].isalpha():
+        raise ValueError("Class name must begin with a letter.")
+    if not class_name.isalnum():
+        raise ValueError("Class name can only contain letters and numbers.")
+
+    return class_name
+
+
+def __validate_project_description(project_description):
+    if project_description is None:
+        return None
+    if not isinstance(project_description, str):
+        raise ValueError("Project description must be text or None.")
+    if len(project_description) > 255:
+        raise ValueError("Project description cannot be more than 255 characters.")
+
+    return project_description
 
 
 def add_annotation_type_if_not_exist():
@@ -49,28 +96,21 @@ def get_projects():
     return project_list
 
 
-def get_project_details(project_id):
-    project = Projects.objects.get(project_id=project_id)
-    project_dict = {
-        "projectId": str(project.project_id),
-        "name": project.project_name,
-        "description": project.description,
-        "dateCreated": project.date_created.strftime(date_format),
-    }
-    return project_dict
-
-
 def create_project(project_info):
     if not project_info:
         raise ValueError("Project information must be provided")
 
-    project_name = project_info.name
-    project_description = project_info.description
+    project_name = __normalize_project_name(project_info.name)
+    project_description = __validate_project_description(project_info.description)
 
     project_setup = project_info.project_setup
     annotation_type = project_setup.annotation_type
 
     object_classes = project_setup.object_classes
+    if len(object_classes) > MAX_OBJECT_CLASSES:
+        raise ValueError(
+            f"A project cannot contain more than {MAX_OBJECT_CLASSES} classes."
+        )
 
     try:
         with transaction.atomic():
@@ -89,8 +129,15 @@ def create_project(project_info):
             )
             project_setup_model.save()
             # Create new object class rows
+            normalized_class_names = set()
             for index, object_class in enumerate(object_classes, start=1):
-                class_name = object_class.class_name
+                class_name = __validate_class_name(object_class.class_name)
+                normalized_class_name = class_name.casefold()
+                if normalized_class_name in normalized_class_names:
+                    raise ValueError(
+                        f'A class named "{class_name}" already exists in this project.'
+                    )
+                normalized_class_names.add(normalized_class_name)
                 object_class_color = object_class.color
                 object_class_description = object_class.description
                 # Save new object class row with class_index
@@ -105,6 +152,26 @@ def create_project(project_info):
     except IntegrityError:
         raise ValueError("Failed to create project due to database error")
     return project_model
+
+
+def get_project_details(project_id):
+    project = Projects.objects.get(project_id=project_id)
+    project_dict = {
+        "projectId": str(project.project_id),
+        "name": project.project_name,
+        "description": project.description,
+        "dateCreated": project.date_created.strftime(date_format),
+    }
+    return project_dict
+
+
+def change_projects_details(project_id, new_project_name, new_description=None):
+    normalized_project_name = __normalize_project_name(new_project_name)
+    validated_description = __validate_project_description(new_description)
+    project = Projects.objects.get(project_id=project_id)
+    project.project_name = normalized_project_name
+    project.description = validated_description
+    project.save(update_fields=["project_name", "description"])
 
 
 def get_images(project_id):

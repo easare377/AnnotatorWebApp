@@ -1,0 +1,1 @@
+"""Polygon-generation backend implementations."""

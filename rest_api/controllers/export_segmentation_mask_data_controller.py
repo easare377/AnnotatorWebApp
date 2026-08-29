@@ -2,11 +2,17 @@ from ..controller import *
 from ..decorators.route import route
 from rest_api import dbhelper as dbh
 from ..objects.export_project_details import ExportProjectDetails
+from ..objects.url_paths import (
+    SEGMENTATION_MASK_PATH,
+    SEGMENTATION_RGB_PATH,
+    SEGMENTATION_ZIP_PATH,
+)
+from ..objects.local_zip_storage_handler import LocalZipStorageHandler
+from ..interfaces.i_zip_storage_handler import IZipStorageHandler
 from rest_api.utils import utils
 import cv2
 import numpy as np
 from PIL import Image
-from ..s3_storage.uf_ecl_annotator_bucket import UFECLAnnotatorBucket
 import io
 from urllib.parse import urlparse
 import os
@@ -126,9 +132,16 @@ def export_images_to_zip(image_mask_urls):
 @route('projects/data/export/segmentation-mask')
 class ExportDataController(Controller):
 
+    def get_zip_storage_handler(self) -> IZipStorageHandler:
+        """Return the local export storage backend used by this controller."""
+        return LocalZipStorageHandler(
+            self.request.build_absolute_uri("/api/")
+        )
+
     def process_post_request(self, project_details: ExportProjectDetails):
         project_id = project_details.project_id
         project = dbh.get_project_details(project_id)
+        # Get the project name to be used in the zip file name.
         project_name = project['name']
         class_value_dict = project_details.class_value_dict
         # Get all images uploaded for a project.
@@ -137,7 +150,8 @@ class ExportDataController(Controller):
         class_map = create_class_map(class_value_dict, object_classes)
         # mask_urls = []
         image_mask_urls = []
-        storage = UFECLAnnotatorBucket()
+        storage = self.get_zip_storage_handler()
+        # Create a unique folder name for this export operation to avoid conflicts.
         export_folder_name = uuid.uuid4().hex
         for image_info in image_infos:
             image_id = image_info['imageId']
@@ -156,23 +170,44 @@ class ExportDataController(Controller):
                     polygon_info['class_value'] = class_value
                     polygon_info['points'] = polygon['points']
                     polygon_infos.append(polygon_info)
-                # Convert polygons to mask.
+                # Convert polygons to multiclass mask.
                 mask = utils.polygons_to_mask(polygon_infos, (image_width, image_height))
                 # Convert multiclass mask to rgb representation.
                 rgb_mask = utils.mask_to_rgb(mask, class_map)
-                # Convert image to an io stream that can be uploaded s3.
+                # Convert masks to in-memory streams for the storage backend.
                 mask_blob = convert_np_image_to_io(mask)
                 rgb_mask_blob = convert_np_image_to_io(rgb_mask)
-                # Save the masks to S3.
-                mask_url = storage.save(f'exports/mask/{export_folder_name}/{blob_name}.png', mask_blob)
-                rgb_mask_url = storage.save(f'exports/rgb/{export_folder_name}/{blob_name}.png', rgb_mask_blob)
+                # Save the generated masks through the selected storage backend.
+                mask_url = storage.write(
+                    str(
+                        SEGMENTATION_MASK_PATH
+                        / export_folder_name
+                        / f'{blob_name}.png'
+                    ),
+                    mask_blob,
+                )
+                rgb_mask_url = storage.write(
+                    str(
+                        SEGMENTATION_RGB_PATH
+                        / export_folder_name
+                        / f'{blob_name}.png'
+                    ),
+                    rgb_mask_blob,
+                )
+                # Append the image URL, mask URL, and RGB mask URL to the list for zipping.
                 image_mask_urls.append({'image_url': image_url, 'mask_url': mask_url, 'rgb_mask_url': rgb_mask_url})
         if len(image_mask_urls) > 0:
             # Create a zip file to store exported data.
             zip_buffer = export_images_to_zip(image_mask_urls)
-            # Save the zip file in s3 bucket.
-            zip_url = storage.save(f'exports/zip/{export_folder_name}/{project_name.replace(" ", "").lower()}.zip'
-                                   , zip_buffer)
+            # Save the ZIP file through the selected storage backend.
+            zip_url = storage.write(
+                str(
+                    SEGMENTATION_ZIP_PATH
+                    / export_folder_name
+                    / f'{project_name.replace(" ", "").lower()}.zip'
+                ),
+                zip_buffer,
+            )
             # Save export operation in db.
             export_id = dbh.create_export_details(project_id, zip_url).export_id
             for image_mask_url in image_mask_urls:

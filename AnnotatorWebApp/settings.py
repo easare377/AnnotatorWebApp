@@ -45,8 +45,8 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
-    "django.contrib.staticfiles",
     "rest_api",
+    "django.contrib.staticfiles",
     "corsheaders",
     "storages",
 ]
@@ -172,3 +172,6 @@ AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = None
 
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+# Stable application directories are currently initialized on local storage.
+STORAGE_DIRECTORY_BACKEND = os.getenv("STORAGE_DIRECTORY_BACKEND", "local")

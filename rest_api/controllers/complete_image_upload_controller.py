@@ -10,19 +10,25 @@ from rest_api import dbhelper as dbh
 
 from ..controller import Controller, ok
 from ..decorators.route import route
-from ..image_conversion.local_image_conversion_handler import (
+from ..objects.local_image_conversion_handler import (
     LocalImageConversionHandler,
 )
 from ..interfaces.i_image_conversion_handler import IImageConversionHandler
 from ..models import ImageInfo, ImageType, UploadedImage
 from ..objects.enums.image_status import ImageStatus
+from ..objects.url_paths import (
+    JPG_UPLOADS_PATH,
+    ORIGINAL_UPLOADS_PATH,
+    PNG_UPLOADS_PATH,
+    THUMBS320X320_UPLOADS_PATH,
+)
 
 
 OUTPUT_DETAILS = {
-    ImageType.PNG: {"directory": "png", "ext": "png", "size": None},
-    ImageType.JPG: {"directory": "jpg", "ext": "jpg", "size": None},
+    ImageType.PNG: {"path": PNG_UPLOADS_PATH, "ext": "png", "size": None},
+    ImageType.JPG: {"path": JPG_UPLOADS_PATH, "ext": "jpg", "size": None},
     ImageType.THUMB: {
-        "directory": "thumbs320x320",
+        "path": THUMBS320X320_UPLOADS_PATH,
         "ext": "jpg",
         "size": {"width": 320, "height": 320},
     },
@@ -39,7 +45,7 @@ def get_image_info(image_id: UUID) -> ImageInfo:
 
 def get_original_image_url(request, image_id: UUID) -> str:
     """Return the URL of the locally uploaded original image."""
-    return request.build_absolute_uri(f"/api/uploads/original/{image_id}")
+    return request.build_absolute_uri(f"/api/{ORIGINAL_UPLOADS_PATH}/{image_id}")
 
 
 def converted_image_url(
@@ -50,7 +56,7 @@ def converted_image_url(
     """Generate the destination URL for a converted local image."""
     output_details = OUTPUT_DETAILS[image_type]
     return request.build_absolute_uri(
-        f"/api/uploads/{output_details['directory']}/"
+        f"/api/{output_details['path']}/"
         f"{upload_id}.{output_details['ext']}"
     )
 

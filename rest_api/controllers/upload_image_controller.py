@@ -11,6 +11,7 @@ from ..controller import Controller, HttpResponseObject, ok
 from ..decorators.route import route
 from ..models import ImageInfo
 from ..objects.enums.image_status import ImageStatus
+from ..objects.url_paths import ORIGINAL_UPLOADS_PATH
 from .generate_upload_image_link_controller import (
     UPLOAD_LINK_SALT,
     original_image_storage_key,
@@ -27,7 +28,7 @@ class ImageUploadTooLargeError(Exception):
 
 def original_image_upload_directory() -> Path:
     """Return the local directory used for raw uploaded image objects."""
-    return Path(settings.BASE_DIR) / "uploads" / "original"
+    return Path(settings.BASE_DIR).joinpath(*ORIGINAL_UPLOADS_PATH.parts)
 
 
 def ensure_original_image_upload_directory() -> Path:

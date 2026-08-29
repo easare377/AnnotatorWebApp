@@ -28,18 +28,24 @@ class ConvertImageControllerTests(SimpleTestCase):
             png_id = uuid4()
             jpg_id = uuid4()
             thumb_id = uuid4()
-            original_path = base_dir / "uploads" / "original" / str(image_id)
+            original_path = (
+                base_dir
+                / "userdata"
+                / "uploads"
+                / "original"
+                / str(image_id)
+            )
             original_path.parent.mkdir(parents=True)
             original_path.write_bytes(make_source_png())
 
             original_url = (
-                f"http://testserver/api/uploads/original/{image_id}"
+                f"http://testserver/api/userdata/uploads/original/{image_id}"
             )
             outputs = [
                 {
                     "uploadId": str(png_id),
                     "outputUrl": (
-                        f"http://testserver/api/uploads/png/{png_id}.png"
+                        f"http://testserver/api/userdata/uploads/png/{png_id}.png"
                     ),
                     "ext": "png",
                     "size": None,
@@ -47,7 +53,7 @@ class ConvertImageControllerTests(SimpleTestCase):
                 {
                     "uploadId": str(jpg_id),
                     "outputUrl": (
-                        f"http://testserver/api/uploads/jpg/{jpg_id}.jpg"
+                        f"http://testserver/api/userdata/uploads/jpg/{jpg_id}.jpg"
                     ),
                     "ext": "jpg",
                     "size": None,
@@ -55,7 +61,7 @@ class ConvertImageControllerTests(SimpleTestCase):
                 {
                     "uploadId": str(thumb_id),
                     "outputUrl": (
-                        "http://testserver/api/uploads/thumbs320x320/"
+                        "http://testserver/api/userdata/uploads/thumbs320x320/"
                         f"{thumb_id}.jpg"
                     ),
                     "ext": "jpg",
@@ -83,19 +89,20 @@ class ConvertImageControllerTests(SimpleTestCase):
             read_source.assert_called_once_with(original_url)
 
             with Image.open(
-                base_dir / "uploads" / "png" / f"{png_id}.png"
+                base_dir / "userdata" / "uploads" / "png" / f"{png_id}.png"
             ) as png_image:
                 self.assertEqual(png_image.size, (640, 480))
                 self.assertEqual(png_image.format, "PNG")
 
             with Image.open(
-                base_dir / "uploads" / "jpg" / f"{jpg_id}.jpg"
+                base_dir / "userdata" / "uploads" / "jpg" / f"{jpg_id}.jpg"
             ) as jpg_image:
                 self.assertEqual(jpg_image.size, (640, 480))
                 self.assertEqual(jpg_image.mode, "RGB")
 
             with Image.open(
                 base_dir
+                / "userdata"
                 / "uploads"
                 / "thumbs320x320"
                 / f"{thumb_id}.jpg"
@@ -108,7 +115,9 @@ class ConvertImageControllerTests(SimpleTestCase):
             "/api/projects/data/convert-image",
             data=json.dumps(
                 {
-                    "originalUrl": "http://testserver/api/uploads/original/image",
+                    "originalUrl": (
+                        "http://testserver/api/userdata/uploads/original/image"
+                    ),
                     "outputs": [],
                 }
             ),
